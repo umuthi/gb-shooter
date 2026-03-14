@@ -31,15 +31,16 @@ uint8_t bullet_spawn(uint8_t x, uint8_t y) {
 
 void bullets_update(void) {
     uint8_t i;
+    Bullet *b;
     for (i = 0; i < BULLET_COUNT; i++) {
-        if (!bullets[i].active) continue;
-        if (bullets[i].y < BULLET_SPEED + 8) {
-            /* Off top of screen */
-            bullets[i].active = 0;
+        b = &bullets[i];
+        if (!b->active) continue;
+        if (b->y < BULLET_SPEED + 8) {
+            b->active = 0;
             move_sprite(BULLET_OAM_BASE + i, 0, 0);
         } else {
-            bullets[i].y -= BULLET_SPEED;
-            move_sprite(BULLET_OAM_BASE + i, bullets[i].x, bullets[i].y);
+            b->y -= BULLET_SPEED;
+            move_sprite(BULLET_OAM_BASE + i, b->x, b->y);
         }
     }
 }

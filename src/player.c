@@ -62,7 +62,8 @@ void player_update(uint8_t joy) {
                 any_spawned = 1;
         }
         if (any_spawned) {
-            player.shoot_cooldown = 12;
+            /* Higher power = slightly longer cooldown to limit active bullets */
+            player.shoot_cooldown = 10 + (pl << 1);
             sfx_shoot();
         }
     }

@@ -15,6 +15,7 @@
 #define STATE_TITLE     0
 #define STATE_PLAYING   1
 #define STATE_GAMEOVER  2
+#define STATE_PAUSED    3
 
 static uint8_t game_state;
 static uint8_t frame_count;
@@ -197,9 +198,41 @@ static void gameover_update(uint8_t joy) {
     }
 }
 
+/* ---- Pause ---- */
+static void pause_init(void) {
+    static const uint8_t paused_txt[] = {
+        TILE_LETTER_P, TILE_LETTER_A, TILE_LETTER_U,
+        TILE_LETTER_S, TILE_LETTER_E, TILE_LETTER_D
+    };
+    uint8_t r, i;
+    uint8_t blk[20];
+    for (i = 0; i < 20; i++) blk[i] = TILE_BLACK;
+    /* Black out the full window */
+    for (r = 0; r < 18; r++)
+        set_win_tiles(0, r, 20, 1, blk);
+    win_write_centered(8, paused_txt, 6);
+    move_win(HUD_WX, 0);
+    SHOW_WIN;
+    game_state = STATE_PAUSED;
+}
+
+static void pause_update(uint8_t joy_pressed) {
+    if (joy_pressed & J_SELECT) {
+        /* Restore HUD window */
+        hud_init();
+        game_state = STATE_PLAYING;
+    }
+}
+
 /* ---- Gameplay update ---- */
 static void playing_update(uint8_t joy, uint8_t joy_pressed) {
     uint8_t j;
+
+    /* Pause on SELECT */
+    if (joy_pressed & J_SELECT) {
+        pause_init();
+        return;
+    }
 
     /* Bomb flash animation — palette cycling, zero CPU cost */
     if (bomb_flash_timer > 0) {
@@ -295,6 +328,9 @@ void main(void) {
             break;
         case STATE_GAMEOVER:
             gameover_update(joy);
+            break;
+        case STATE_PAUSED:
+            pause_update(joy_pressed);
             break;
         }
 

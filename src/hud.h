@@ -12,8 +12,6 @@ extern uint16_t score;
 
 void hud_init(void);
 void hud_add_score(uint8_t points);
-void hud_draw_lives(uint8_t lives);
-void hud_draw_score(void);
 void hud_update(void);
 
 #endif

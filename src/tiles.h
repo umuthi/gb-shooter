@@ -25,6 +25,8 @@
 #define TILE_LETTER_T     25
 #define TILE_LETTER_V     26
 #define TILE_LETTER_B     27  /* for HUD bomb display */
+#define TILE_LETTER_U     28
+#define TILE_LETTER_D     29
 
 /* Sprite tile indices (loaded into sprite VRAM separately) */
 #define SPR_PLAYER        0
@@ -40,7 +42,7 @@
 extern const uint8_t bg_tiles[];
 extern const uint8_t sprite_tiles[];
 
-#define BG_TILES_COUNT    28
+#define BG_TILES_COUNT    30
 #define SPR_TILES_COUNT   9
 
 void tiles_load(void);

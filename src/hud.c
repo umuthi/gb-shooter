@@ -5,19 +5,13 @@
 
 uint16_t score;
 
-/*
- * HUD window row 0 layout (20 cols):
- *  Cols  0- 4: hearts  (TILE_HEART for each life, TILE_BLACK for empty)
- *  Col   5   : TILE_BLACK spacer
- *  Cols  6-10: power level (TILE_STAR_LG for each level, TILE_BLACK for empty)
- *  Col  11   : TILE_BLACK spacer
- *  Col  12   : TILE_LETTER_B
- *  Col  13   : bomb count digit (TILE_DIGIT_0 + player.bombs)
- *  Cols 14-15: TILE_BLACK spacers
- *  Cols 16-19: score digits
- */
+/* Cached values — only redraw the section that actually changed */
+static uint8_t prev_lives;
+static uint8_t prev_power;
+static uint8_t prev_bombs;
+static uint16_t prev_score;
 
-void hud_draw_lives(uint8_t lives) {
+static void hud_draw_lives(uint8_t lives) {
     uint8_t buf[5];
     uint8_t i;
     for (i = 0; i < 5; i++) {
@@ -42,7 +36,7 @@ static void hud_draw_bombs(uint8_t bombs) {
     set_win_tiles(12, 0, 2, 1, buf);
 }
 
-void hud_draw_score(void) {
+static void hud_draw_score(void) {
     uint16_t s = score;
     uint8_t digits[4];
     digits[3] = s % 10; s /= 10;
@@ -70,28 +64,37 @@ void hud_init(void) {
     for (i = 0; i < 20; i++) black_row[i] = TILE_BLACK;
     set_win_tiles(0, 0, 20, 1, black_row);
 
-    /* Set spacer tiles at fixed positions */
-    {
-        uint8_t sp = TILE_BLACK;
-        set_win_tiles(5, 0, 1, 1, &sp);
-        set_win_tiles(11, 0, 1, 1, &sp);
-        set_win_tiles(14, 0, 1, 1, &sp);
-        set_win_tiles(15, 0, 1, 1, &sp);
-    }
-
     /* Position window layer */
     move_win(HUD_WX, HUD_WY);
     SHOW_WIN;
 
-    hud_draw_lives(player.lives);
-    hud_draw_power(player.power_level);
-    hud_draw_bombs(player.bombs);
-    hud_draw_score();
+    /* Force-draw everything on init */
+    prev_lives = 0xFF;
+    prev_power = 0xFF;
+    prev_bombs = 0xFF;
+    prev_score = 0xFFFF;
+    hud_update();
 }
 
 void hud_update(void) {
-    hud_draw_lives(player.lives);
-    hud_draw_power(player.power_level);
-    hud_draw_bombs(player.bombs);
-    hud_draw_score();
+    uint8_t lives = player.lives;
+    uint8_t power = player.power_level;
+    uint8_t bombs = player.bombs;
+
+    if (lives != prev_lives) {
+        hud_draw_lives(lives);
+        prev_lives = lives;
+    }
+    if (power != prev_power) {
+        hud_draw_power(power);
+        prev_power = power;
+    }
+    if (bombs != prev_bombs) {
+        hud_draw_bombs(bombs);
+        prev_bombs = bombs;
+    }
+    if (score != prev_score) {
+        hud_draw_score();
+        prev_score = score;
+    }
 }
