@@ -6,7 +6,6 @@ Enemy enemies[ENEMY_COUNT];
 uint8_t wave_num;
 uint8_t enemies_alive;
 
-/* Wave configs: {count, pattern, speed_y, spread} */
 typedef struct {
     uint8_t count;
     uint8_t pattern;
@@ -30,7 +29,7 @@ void enemies_init(void) {
         enemies[i].active = 0;
         move_sprite(ENEMY_OAM_BASE + i, 0, 0);
         set_sprite_tile(ENEMY_OAM_BASE + i, SPR_ENEMY_A);
-        set_sprite_prop(ENEMY_OAM_BASE + i, 0x10U); /* OBP1 → shade 3 (black) */
+        set_sprite_prop(ENEMY_OAM_BASE + i, 0x10U);
     }
 }
 
@@ -38,6 +37,10 @@ void enemies_spawn_wave(void) {
     uint8_t i;
     const WaveConfig *w = &waves[wave_num % WAVE_COUNT];
     uint8_t count = w->count;
+    uint8_t pat = w->pattern;
+    uint8_t sy = w->speed_y;
+    Enemy *e;
+
     if (count > ENEMY_COUNT) count = ENEMY_COUNT;
 
     enemies_alive = 0;
@@ -47,18 +50,18 @@ void enemies_spawn_wave(void) {
     }
 
     for (i = 0; i < count; i++) {
-        enemies[i].active = 1;
-        /* Space evenly across the top */
-        enemies[i].x = 20 + (i * (140 / count));
-        enemies[i].y = 10 + (i * 4);
-        enemies[i].pattern = w->pattern;
-        enemies[i].speed_y = w->speed_y;
-        enemies[i].timer = i * 8; /* stagger pattern phase */
-        enemies[i].dir = (i & 1) ? 1 : 0;
-        enemies[i].speed_x = (w->pattern == PATTERN_DIAGONAL) ? ((i & 1) ? 1 : -1) : 0;
-        enemies[i].tile = (i & 1) ? SPR_ENEMY_B : SPR_ENEMY_A;
-        set_sprite_tile(ENEMY_OAM_BASE + i, enemies[i].tile);
-        move_sprite(ENEMY_OAM_BASE + i, enemies[i].x, enemies[i].y);
+        e = &enemies[i];
+        e->active = 1;
+        e->x = 20 + (i * (140 / count));
+        e->y = 10 + (i * 4);
+        e->pattern = pat;
+        e->speed_y = sy;
+        e->timer = i << 3;
+        e->dir = i & 1;
+        e->speed_x = (pat == PATTERN_DIAGONAL) ? ((i & 1) ? 1 : -1) : 0;
+        e->tile = (i & 1) ? SPR_ENEMY_B : SPR_ENEMY_A;
+        set_sprite_tile(ENEMY_OAM_BASE + i, e->tile);
+        move_sprite(ENEMY_OAM_BASE + i, e->x, e->y);
         enemies_alive++;
     }
 
@@ -67,71 +70,67 @@ void enemies_spawn_wave(void) {
 
 void enemies_update(void) {
     uint8_t i;
+    Enemy *e;
+
     for (i = 0; i < ENEMY_COUNT; i++) {
-        if (!enemies[i].active) continue;
+        e = &enemies[i];
+        if (!e->active) continue;
 
-        enemies[i].timer++;
+        e->timer++;
 
-        switch (enemies[i].pattern) {
+        switch (e->pattern) {
         case PATTERN_STRAIGHT:
-            enemies[i].y += enemies[i].speed_y;
+            e->y += e->speed_y;
             break;
 
         case PATTERN_ZIGZAG:
-            enemies[i].y += enemies[i].speed_y;
-            if (enemies[i].dir == 0) {
-                if (enemies[i].x < 152) enemies[i].x++;
-                else enemies[i].dir = 1;
+            e->y += e->speed_y;
+            if (e->dir == 0) {
+                if (e->x < 152) e->x++;
+                else e->dir = 1;
             } else {
-                if (enemies[i].x > 8) enemies[i].x--;
-                else enemies[i].dir = 0;
+                if (e->x > 8) e->x--;
+                else e->dir = 0;
             }
             break;
 
         case PATTERN_SWOOP:
-            /* Swoop: move down fast for first 40 frames, then slow */
-            if (enemies[i].timer < 40)
-                enemies[i].y += 2;
+            if (e->timer < 40)
+                e->y += 2;
             else
-                enemies[i].y += enemies[i].speed_y;
-            /* Also drift horizontally */
-            if (enemies[i].dir == 0) {
-                if (enemies[i].x < 140) enemies[i].x++;
-                else enemies[i].dir = 1;
+                e->y += e->speed_y;
+            if (e->dir == 0) {
+                if (e->x < 140) e->x++;
+                else e->dir = 1;
             } else {
-                if (enemies[i].x > 20) enemies[i].x--;
-                else enemies[i].dir = 0;
+                if (e->x > 20) e->x--;
+                else e->dir = 0;
             }
             break;
 
         case PATTERN_DIAGONAL:
-            enemies[i].y += enemies[i].speed_y;
-            enemies[i].x = (uint8_t)((int8_t)enemies[i].x + enemies[i].speed_x);
-            /* Bounce off walls */
-            if (enemies[i].x <= 8 || enemies[i].x >= 152)
-                enemies[i].speed_x = -enemies[i].speed_x;
+            e->y += e->speed_y;
+            e->x = (uint8_t)((int8_t)e->x + e->speed_x);
+            if (e->x <= 8 || e->x >= 152)
+                e->speed_x = -e->speed_x;
             break;
 
         case PATTERN_SINE:
-            /* Approximate sine with counter: shift every 16 frames */
-            enemies[i].y += enemies[i].speed_y;
+            e->y += e->speed_y;
             {
-                uint8_t phase = (enemies[i].timer >> 3) & 3;
-                if (phase == 0)      enemies[i].x++;
-                else if (phase == 1) enemies[i].x++;
-                else if (phase == 2) enemies[i].x--;
-                else                 enemies[i].x--;
+                uint8_t phase = (e->timer >> 3) & 3;
+                if (phase < 2) e->x++;
+                else           e->x--;
             }
             break;
         }
 
-        /* Check if enemy has left the screen at the bottom */
-        if (enemies[i].y > 144) {
-            enemies[i].active = 0;
+        if (e->y > 144) {
+            e->active = 0;
             move_sprite(ENEMY_OAM_BASE + i, 0, 0);
             if (enemies_alive > 0) enemies_alive--;
         } else {
-            move_sprite(ENEMY_OAM_BASE + i, enemies[i].x, enemies[i].y);
+            move_sprite(ENEMY_OAM_BASE + i, e->x, e->y);
         }
     }
 }

@@ -20,6 +20,10 @@ static uint8_t game_state;
 static uint8_t frame_count;
 static uint8_t gameover_timer;
 
+/* Bomb flash animation state */
+#define BOMB_FLASH_FRAMES  16
+static uint8_t bomb_flash_timer;
+
 /* ---- Starfield (scrolling background) ---- */
 static uint8_t scroll_y;
 
@@ -31,26 +35,30 @@ static uint8_t rand8(void) {
 }
 
 static void starfield_init(void) {
-    uint8_t x, y, tile;
+    uint8_t x, y;
+    uint8_t row_buf[32];
     scroll_y = 0;
-    /* BG map is ONLY ever stars — nothing else is written here */
+    /* BG map is ONLY ever stars — batch 32 tiles per row for speed */
     for (y = 0; y < 32; y++) {
         for (x = 0; x < 32; x++) {
             uint8_t r = rand8();
-            if (r < 8)       tile = TILE_STAR_LG;
-            else if (r < 32) tile = TILE_STAR_SM;
-            else             tile = TILE_BLANK;
-            set_bkg_tiles(x, y, 1, 1, &tile);
+            if (r < 8)       row_buf[x] = TILE_STAR_LG;
+            else if (r < 32) row_buf[x] = TILE_STAR_SM;
+            else             row_buf[x] = TILE_BLANK;
         }
+        set_bkg_tiles(0, y, 32, 1, row_buf);
     }
 }
 
 static void starfield_scroll(void) {
-    scroll_y--;          /* decrement → viewport moves up → stars fall down */
+    scroll_y--;
     SCY_REG = scroll_y;
 }
 
 /* ---- Window overlay helpers ---- */
+
+/* Shared black row buffer — filled once, reused everywhere */
+static uint8_t black_row[20];
 
 static void win_fill_row(uint8_t row, uint8_t tile) {
     uint8_t buf[20];
@@ -59,7 +67,6 @@ static void win_fill_row(uint8_t row, uint8_t tile) {
     set_win_tiles(0, row, 20, 1, buf);
 }
 
-/* Center 'len' tiles from the 'tiles' array on the given window row */
 static void win_write_centered(uint8_t row, const uint8_t *tiles, uint8_t len) {
     uint8_t buf[20];
     uint8_t i;
@@ -69,7 +76,6 @@ static void win_write_centered(uint8_t row, const uint8_t *tiles, uint8_t len) {
     set_win_tiles(0, row, 20, 1, buf);
 }
 
-/* 4-digit score row, centered */
 static void win_draw_score_row(uint8_t row, uint16_t s) {
     uint8_t buf[20];
     uint8_t i;
@@ -86,31 +92,18 @@ static void win_draw_score_row(uint8_t row, uint16_t s) {
     set_win_tiles(0, row, 20, 1, buf);
 }
 
-/*
- * Full-screen Window overlay.
- * kind=0  →  Title screen
- * kind=1  →  Game Over screen
- *
- * The Window layer is screen-fixed (ignores SCY_REG), so it never
- * drifts. BG tile map stays stars-only throughout.
- */
 static void win_overlay_init(uint8_t kind) {
     uint8_t r;
+    uint8_t i;
 
-    /* Black background for all 18 visible rows */
-    for (r = 0; r < 18; r++) win_fill_row(r, TILE_BLACK);
+    /* Init shared black row once */
+    for (i = 0; i < 20; i++) black_row[i] = TILE_BLACK;
+
+    /* Black background for all 18 visible rows — reuse same buffer */
+    for (r = 0; r < 18; r++)
+        set_win_tiles(0, r, 20, 1, black_row);
 
     if (kind == 0) {
-        /*
-         *  Title screen layout
-         *  -------------------
-         *  row  3  : ---- divider ----
-         *  row  5  :     SHOOTER
-         *  row  7  : ---- divider ----
-         *  row 10  :  heart-star deco
-         *  row 12  : ---- divider ----
-         *  row 14  :     PRESS A
-         */
         static const uint8_t shooter[] = {
             TILE_LETTER_S, TILE_LETTER_H, TILE_LETTER_O,
             TILE_LETTER_O, TILE_LETTER_T, TILE_LETTER_E,
@@ -122,7 +115,6 @@ static void win_overlay_init(uint8_t kind) {
             TILE_LETTER_A
         };
         uint8_t deco[20];
-        uint8_t i;
         for (i = 0; i < 20; i++)
             deco[i] = (i & 1) ? TILE_HEART : TILE_STAR_LG;
 
@@ -134,16 +126,6 @@ static void win_overlay_init(uint8_t kind) {
         win_write_centered(14, pressa, 7);
 
     } else {
-        /*
-         *  Game Over screen layout
-         *  -----------------------
-         *  row  3  : ---- divider ----
-         *  row  5  :    GAME OVER
-         *  row  7  : ---- divider ----
-         *  row  9  :      0000   (score)
-         *  row 11  : ---- divider ----
-         *  row 13  :     PRESS A
-         */
         static const uint8_t gameover[] = {
             TILE_LETTER_G, TILE_LETTER_A, TILE_LETTER_M,
             TILE_LETTER_E, TILE_BLANK,
@@ -173,9 +155,9 @@ static void title_init(void) {
     uint8_t i;
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);
 
-    /* Reset scroll — no movement while overlay covers screen */
     scroll_y = 0;
     SCY_REG = 0;
+    bomb_flash_timer = 0;
 
     pickups_init();
     win_overlay_init(0);
@@ -189,7 +171,7 @@ static void title_update(uint8_t joy) {
         bullets_init();
         enemies_init();
         enemies_spawn_wave();
-        hud_init(); /* moves window to WY=136 for HUD strip */
+        hud_init();
     }
 }
 
@@ -197,6 +179,10 @@ static void title_update(uint8_t joy) {
 static void gameover_init(void) {
     uint8_t i;
     for (i = 0; i < 21; i++) move_sprite(i, 0, 0);
+
+    /* Restore palette in case bomb flash was active */
+    BGP_REG = 0xE4;
+    bomb_flash_timer = 0;
 
     pickups_init();
     win_overlay_init(1);
@@ -215,8 +201,23 @@ static void gameover_update(uint8_t joy) {
 static void playing_update(uint8_t joy, uint8_t joy_pressed) {
     uint8_t j;
 
+    /* Bomb flash animation — palette cycling, zero CPU cost */
+    if (bomb_flash_timer > 0) {
+        bomb_flash_timer--;
+        if (bomb_flash_timer == 0) {
+            /* Restore normal palette */
+            BGP_REG = 0xE4;
+        } else if (bomb_flash_timer & 2) {
+            /* Flash: invert BG to near-white */
+            BGP_REG = 0x00;
+        } else {
+            /* Normal palette on alternate frames */
+            BGP_REG = 0xE4;
+        }
+    }
+
     /* Bomb: B button uses one bomb to clear all on-screen enemies */
-    if ((joy_pressed & J_B) && player.bombs > 0) {
+    if ((joy_pressed & J_B) && player.bombs > 0 && bomb_flash_timer == 0) {
         player.bombs--;
         for (j = 0; j < ENEMY_COUNT; j++) {
             if (!enemies[j].active) continue;
@@ -226,6 +227,9 @@ static void playing_update(uint8_t joy, uint8_t joy_pressed) {
             hud_add_score(10);
         }
         sfx_bomb();
+        bomb_flash_timer = BOMB_FLASH_FRAMES;
+        /* Start flash immediately */
+        BGP_REG = 0x00;
     }
 
     player_update(joy);
@@ -234,7 +238,7 @@ static void playing_update(uint8_t joy, uint8_t joy_pressed) {
     pickups_update();
     collision_check();
     hud_update();
-    starfield_scroll(); /* only scroll during active play */
+    starfield_scroll();
 
     if (enemies_alive == 0) {
         enemies_spawn_wave();
@@ -256,12 +260,8 @@ void main(void) {
 
     tiles_load();
 
-    /* BGP:  color0→shade0(white bg)  color1→shade1(lightgray stars/text)
-             color3→shade3(black overlay) */
     BGP_REG  = 0xE4;
-    /* OBP0: color0→transparent  color1→shade2(darkgray)  — player */
     OBP0_REG = 0xE8;
-    /* OBP1: color0→transparent  color1→shade3(black)     — bullets + enemies */
     OBP1_REG = 0xFC;
 
     sound_init();
@@ -273,6 +273,7 @@ void main(void) {
 
     frame_count = 0;
     prev_joy = 0;
+    bomb_flash_timer = 0;
     SCY_REG = 0;
     SCX_REG = 0;
 
