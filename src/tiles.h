@@ -27,6 +27,7 @@
 #define TILE_LETTER_B     27  /* for HUD bomb display */
 #define TILE_LETTER_U     28
 #define TILE_LETTER_D     29
+#define TILE_BAR          30  /* solid block for boss health bar */
 
 /* Sprite tile indices (loaded into sprite VRAM separately) */
 #define SPR_PLAYER        0
@@ -38,12 +39,16 @@
 #define SPR_HEART         6   /* heart icon — used as BG/WIN tile in HUD */
 #define SPR_PICKUP_POWER  7
 #define SPR_PICKUP_BOMB   8
+#define SPR_BOSS_TL       9   /* boss 2x2 metasprite — top-left */
+#define SPR_BOSS_TR       10
+#define SPR_BOSS_BL       11
+#define SPR_BOSS_BR       12
 
 extern const uint8_t bg_tiles[];
 extern const uint8_t sprite_tiles[];
 
-#define BG_TILES_COUNT    30
-#define SPR_TILES_COUNT   9
+#define BG_TILES_COUNT    31
+#define SPR_TILES_COUNT   13
 
 void tiles_load(void);
 

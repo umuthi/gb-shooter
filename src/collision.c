@@ -3,6 +3,7 @@
 #include "enemy.h"
 #include "player.h"
 #include "pickup.h"
+#include "boss.h"
 #include "hud.h"
 #include "sound.h"
 #include <gbdk/platform.h>
@@ -15,6 +16,11 @@
 #define AABB_HIT(ax, ay, bx, by) \
     (!(((ax)+7 <= (bx)+1) || ((bx)+7 <= (ax)+1) || \
        ((ay)+7 <= (by)+1) || ((by)+7 <= (ay)+1)))
+
+/* AABB test for bullet (8x8) vs boss (16x16). */
+#define BOSS_HIT(bx, by) \
+    (!((bx)+7 <= (boss.x)+1 || (boss.x)+17 <= (bx)+1 || \
+       (by)+7 <= (boss.y)+1 || (boss.y)+17 <= (by)+1))
 
 /* Keep the function for any external callers */
 uint8_t aabb_hit(uint8_t ax, uint8_t ay, uint8_t bx, uint8_t by) {
@@ -86,6 +92,51 @@ void collision_check(void) {
                 pickups[i].active = 0;
                 move_sprite(PICKUP_OAM_BASE + i, 0, 0);
                 sfx_pickup();
+            }
+        }
+    }
+}
+
+/*
+ * Boss-phase collision: player bullets vs boss, boss bullets vs player,
+ * boss body vs player.  Call instead of collision_check() during STATE_BOSS.
+ */
+void collision_check_boss(void) {
+    uint8_t i;
+    uint8_t bx, by;
+
+    if (!boss.active) return;
+
+    /* Player bullets vs boss */
+    for (i = 0; i < BULLET_COUNT; i++) {
+        if (!bullets[i].active) continue;
+        bx = bullets[i].x;
+        by = bullets[i].y;
+        if (BOSS_HIT(bx, by)) {
+            bullets[i].active = 0;
+            move_sprite(BULLET_OAM_BASE + i, 0, 0);
+            boss_hit(1);
+            hud_add_score(5);
+            sfx_explosion();
+        }
+    }
+
+    /* Boss body vs player */
+    if (player.alive && player.inv_timer == 0) {
+        if (BOSS_HIT(player.x, player.y))
+            player_hit();
+    }
+
+    /* Boss bullets vs player */
+    if (player.alive && player.inv_timer == 0) {
+        uint8_t px = player.x, py = player.y;
+        for (i = 0; i < BOSS_BULLET_COUNT; i++) {
+            if (!boss_bullets[i].active) continue;
+            if (AABB_HIT(px, py, boss_bullets[i].x, boss_bullets[i].y)) {
+                boss_bullets[i].active = 0;
+                move_sprite(BOSS_BULLET_BASE + i, 0, 0);
+                player_hit();
+                break;
             }
         }
     }

@@ -6,6 +6,7 @@
 #include "player.h"
 #include "bullet.h"
 #include "enemy.h"
+#include "boss.h"
 #include "collision.h"
 #include "hud.h"
 #include "sound.h"
@@ -16,10 +17,16 @@
 #define STATE_PLAYING   1
 #define STATE_GAMEOVER  2
 #define STATE_PAUSED    3
+#define STATE_BOSS      4
+#define STATE_CONGRATS  5
+
+/* Wave threshold to trigger the boss */
+#define BOSS_WAVE       20
 
 static uint8_t game_state;
 static uint8_t frame_count;
 static uint8_t gameover_timer;
+static uint8_t congrats_timer;
 
 /* Bomb flash animation state */
 #define BOMB_FLASH_FRAMES  16
@@ -126,7 +133,7 @@ static void win_overlay_init(uint8_t kind) {
         win_fill_row(12, TILE_DASH);
         win_write_centered(14, pressa, 7);
 
-    } else {
+    } else if (kind == 1) {
         static const uint8_t gameover[] = {
             TILE_LETTER_G, TILE_LETTER_A, TILE_LETTER_M,
             TILE_LETTER_E, TILE_BLANK,
@@ -145,6 +152,34 @@ static void win_overlay_init(uint8_t kind) {
         win_draw_score_row(9, score);
         win_fill_row(11, TILE_DASH);
         win_write_centered(13, pressa, 7);
+
+    } else {
+        /* kind == 2: Congratulations screen */
+        static const uint8_t great[] = {
+            TILE_LETTER_G, TILE_LETTER_R, TILE_LETTER_E,
+            TILE_LETTER_A, TILE_LETTER_T
+        };
+        static const uint8_t shot[] = {
+            TILE_LETTER_S, TILE_LETTER_H, TILE_LETTER_O,
+            TILE_LETTER_T
+        };
+        static const uint8_t pressa[] = {
+            TILE_LETTER_P, TILE_LETTER_R, TILE_LETTER_E,
+            TILE_LETTER_S, TILE_LETTER_S, TILE_BLANK,
+            TILE_LETTER_A
+        };
+        uint8_t deco[20];
+        for (i = 0; i < 20; i++)
+            deco[i] = (i & 1) ? TILE_HEART : TILE_STAR_LG;
+
+        win_fill_row(3, TILE_DASH);
+        win_write_centered(5, great, 5);
+        win_write_centered(7, shot, 4);
+        win_fill_row(9, TILE_DASH);
+        set_win_tiles(0, 11, 20, 1, deco);
+        win_draw_score_row(13, score);
+        win_fill_row(15, TILE_DASH);
+        win_write_centered(17, pressa, 7);
     }
 
     move_win(HUD_WX, 0);
@@ -179,7 +214,7 @@ static void title_update(uint8_t joy) {
 /* ---- Game Over screen ---- */
 static void gameover_init(void) {
     uint8_t i;
-    for (i = 0; i < 21; i++) move_sprite(i, 0, 0);
+    for (i = 0; i < 29; i++) move_sprite(i, 0, 0);
 
     /* Restore palette in case bomb flash was active */
     BGP_REG = 0xE4;
@@ -207,7 +242,6 @@ static void pause_init(void) {
     uint8_t r, i;
     uint8_t blk[20];
     for (i = 0; i < 20; i++) blk[i] = TILE_BLACK;
-    /* Black out the full window */
     for (r = 0; r < 18; r++)
         set_win_tiles(0, r, 20, 1, blk);
     win_write_centered(8, paused_txt, 6);
@@ -218,9 +252,89 @@ static void pause_init(void) {
 
 static void pause_update(uint8_t joy_pressed) {
     if (joy_pressed & J_SELECT) {
-        /* Restore HUD window */
         hud_init();
         game_state = STATE_PLAYING;
+    }
+}
+
+/* ---- Boss fight ---- */
+static void boss_fight_init(void) {
+    uint8_t i;
+    /* Hide all enemy and pickup sprites */
+    for (i = 0; i < ENEMY_COUNT; i++)
+        move_sprite(ENEMY_OAM_BASE + i, 0, 0);
+    pickups_init();
+
+    /* Freeze scroll so BG row 0 stays at screen top for health bar */
+    SCY_REG = 0;
+    scroll_y = 0;
+
+    BGP_REG = 0xE4;
+    bomb_flash_timer = 0;
+
+    boss_init();
+    hud_init();
+    game_state = STATE_BOSS;
+}
+
+static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
+    uint8_t j;
+
+    /* Pause */
+    if (joy_pressed & J_SELECT) {
+        pause_init();
+        return;
+    }
+
+    /* Bomb flash */
+    if (bomb_flash_timer > 0) {
+        bomb_flash_timer--;
+        if (bomb_flash_timer == 0)        BGP_REG = 0xE4;
+        else if (bomb_flash_timer & 2)    BGP_REG = 0x00;
+        else                              BGP_REG = 0xE4;
+    }
+
+    /* Bomb — deals heavy damage to boss but leaves at least 1 HP */
+    if ((joy_pressed & J_B) && player.bombs > 0 && bomb_flash_timer == 0) {
+        player.bombs--;
+        if (boss.active && boss.hp > 1) {
+            uint8_t dmg = (boss.hp > 6) ? 5 : boss.hp - 1;
+            boss_hit(dmg);
+        }
+        sfx_bomb();
+        bomb_flash_timer = BOMB_FLASH_FRAMES;
+        BGP_REG = 0x00;
+    }
+
+    player_update(joy);
+    bullets_update();
+    boss_update();
+    collision_check_boss();
+    hud_update();
+    /* No starfield_scroll — background is frozen during boss fight */
+
+    /* Boss defeated */
+    if (boss.active && boss.hp == 0) {
+        boss_hide();
+        sfx_explosion();
+        /* Hide all boss bullets already done in boss_hide */
+        for (j = 0; j < 29; j++) move_sprite(j, 0, 0);
+        BGP_REG = 0xE4;
+        win_overlay_init(2);
+        congrats_timer = 0;
+        game_state = STATE_CONGRATS;
+    }
+
+    if (!player.alive) {
+        boss_hide();
+        gameover_init();
+    }
+}
+
+static void congrats_update(uint8_t joy) {
+    congrats_timer++;
+    if (congrats_timer > 120 && (joy & (J_START | J_A))) {
+        title_init();
     }
 }
 
@@ -238,18 +352,15 @@ static void playing_update(uint8_t joy, uint8_t joy_pressed) {
     if (bomb_flash_timer > 0) {
         bomb_flash_timer--;
         if (bomb_flash_timer == 0) {
-            /* Restore normal palette */
             BGP_REG = 0xE4;
         } else if (bomb_flash_timer & 2) {
-            /* Flash: invert BG to near-white */
             BGP_REG = 0x00;
         } else {
-            /* Normal palette on alternate frames */
             BGP_REG = 0xE4;
         }
     }
 
-    /* Bomb: B button uses one bomb to clear all on-screen enemies */
+    /* Bomb: B button clears all on-screen enemies */
     if ((joy_pressed & J_B) && player.bombs > 0 && bomb_flash_timer == 0) {
         player.bombs--;
         for (j = 0; j < ENEMY_COUNT; j++) {
@@ -261,7 +372,6 @@ static void playing_update(uint8_t joy, uint8_t joy_pressed) {
         }
         sfx_bomb();
         bomb_flash_timer = BOMB_FLASH_FRAMES;
-        /* Start flash immediately */
         BGP_REG = 0x00;
     }
 
@@ -274,7 +384,11 @@ static void playing_update(uint8_t joy, uint8_t joy_pressed) {
     starfield_scroll();
 
     if (enemies_alive == 0) {
-        enemies_spawn_wave();
+        if (wave_num >= BOSS_WAVE) {
+            boss_fight_init();
+        } else {
+            enemies_spawn_wave();
+        }
     }
 
     if (!player.alive) {
@@ -307,6 +421,7 @@ void main(void) {
     frame_count = 0;
     prev_joy = 0;
     bomb_flash_timer = 0;
+    congrats_timer = 0;
     SCY_REG = 0;
     SCX_REG = 0;
 
@@ -331,6 +446,12 @@ void main(void) {
             break;
         case STATE_PAUSED:
             pause_update(joy_pressed);
+            break;
+        case STATE_BOSS:
+            boss_fight_update(joy, joy_pressed);
+            break;
+        case STATE_CONGRATS:
+            congrats_update(joy);
             break;
         }
 

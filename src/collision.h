@@ -7,5 +7,6 @@
 uint8_t aabb_hit(uint8_t ax, uint8_t ay, uint8_t bx, uint8_t by);
 
 void collision_check(void);
+void collision_check_boss(void);
 
 #endif
