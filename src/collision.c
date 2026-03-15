@@ -34,6 +34,7 @@ uint8_t aabb_hit(uint8_t ax, uint8_t ay, uint8_t bx, uint8_t by) {
 void collision_check(void) {
     uint8_t i, j;
     uint8_t bx, by, ex, ey;
+    uint8_t px, py;
 
     /* Bullet vs Enemy */
     for (i = 0; i < BULLET_COUNT; i++) {
@@ -60,7 +61,7 @@ void collision_check(void) {
 
     /* Enemy vs Player */
     if (player.alive && player.inv_timer == 0) {
-        uint8_t px = player.x, py = player.y;
+        px = player.x; py = player.y;
         for (j = 0; j < ENEMY_COUNT; j++) {
             if (!enemies[j].active) continue;
             if (AABB_HIT(px, py, enemies[j].x, enemies[j].y)) {
@@ -75,7 +76,7 @@ void collision_check(void) {
 
     /* Player vs Pickups — always collectible regardless of inv_timer */
     if (player.alive) {
-        uint8_t px = player.x, py = player.y;
+        px = player.x; py = player.y;
         for (i = 0; i < PICKUP_COUNT; i++) {
             if (!pickups[i].active) continue;
             if (AABB_HIT(px, py, pickups[i].x, pickups[i].y)) {
@@ -95,6 +96,20 @@ void collision_check(void) {
             }
         }
     }
+
+    /* Enemy bullets vs player — only active in stage 2+ */
+    if (player.alive && player.inv_timer == 0 && game_stage >= 2) {
+        px = player.x; py = player.y;
+        for (i = 0; i < ENEMY_BULLET_COUNT; i++) {
+            if (!enemy_bullets[i].active) continue;
+            if (AABB_HIT(px, py, enemy_bullets[i].x, enemy_bullets[i].y)) {
+                enemy_bullets[i].active = 0;
+                move_sprite(ENEMY_BULLET_BASE + i, 0, 0);
+                player_hit();
+                break;
+            }
+        }
+    }
 }
 
 /*
@@ -105,7 +120,7 @@ void collision_check_boss(void) {
     uint8_t i;
     uint8_t bx, by;
 
-    if (!boss.active) return;
+    if (!boss.active || boss.dying) return;
 
     /* Player bullets vs boss */
     for (i = 0; i < BULLET_COUNT; i++) {
@@ -129,10 +144,10 @@ void collision_check_boss(void) {
 
     /* Boss bullets vs player */
     if (player.alive && player.inv_timer == 0) {
-        uint8_t px = player.x, py = player.y;
+        bx = player.x; by = player.y;
         for (i = 0; i < BOSS_BULLET_COUNT; i++) {
             if (!boss_bullets[i].active) continue;
-            if (AABB_HIT(px, py, boss_bullets[i].x, boss_bullets[i].y)) {
+            if (AABB_HIT(bx, by, boss_bullets[i].x, boss_bullets[i].y)) {
                 boss_bullets[i].active = 0;
                 move_sprite(BOSS_BULLET_BASE + i, 0, 0);
                 player_hit();

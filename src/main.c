@@ -32,6 +32,10 @@ static uint8_t congrats_timer;
 #define BOMB_FLASH_FRAMES  16
 static uint8_t bomb_flash_timer;
 
+/* Boss death screen-flash animation (plays after death anim completes) */
+#define BOSS_DEATH_FLASH_FRAMES  30
+static uint8_t boss_death_flash;
+
 /* ---- Starfield (scrolling background) ---- */
 static uint8_t scroll_y;
 
@@ -202,10 +206,12 @@ static void title_init(void) {
 
 static void title_update(uint8_t joy) {
     if (joy & (J_START | J_A)) {
+        game_stage = 1;
         game_state = STATE_PLAYING;
         player_init();
         bullets_init();
         enemies_init();
+        enemy_bullets_init();
         enemies_spawn_wave();
         hud_init();
     }
@@ -260,9 +266,11 @@ static void pause_update(uint8_t joy_pressed) {
 /* ---- Boss fight ---- */
 static void boss_fight_init(void) {
     uint8_t i;
-    /* Hide all enemy and pickup sprites */
+    /* Hide all enemy, enemy-bullet, and pickup sprites */
     for (i = 0; i < ENEMY_COUNT; i++)
         move_sprite(ENEMY_OAM_BASE + i, 0, 0);
+    for (i = 0; i < ENEMY_BULLET_COUNT; i++)
+        move_sprite(ENEMY_BULLET_BASE + i, 0, 0);
     pickups_init();
 
     /* Freeze scroll so BG row 0 stays at screen top for health bar */
@@ -270,9 +278,10 @@ static void boss_fight_init(void) {
     scroll_y = 0;
 
     BGP_REG = 0xE4;
-    bomb_flash_timer = 0;
+    bomb_flash_timer  = 0;
+    boss_death_flash  = 0;
 
-    boss_init();
+    boss_init(game_stage);   /* stage 1 → boss 1,  stage 2 → boss 2 */
     hud_init();
     game_state = STATE_BOSS;
 }
@@ -280,8 +289,52 @@ static void boss_fight_init(void) {
 static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
     uint8_t j;
 
-    /* Pause */
-    if (joy_pressed & J_SELECT) {
+    /* ---- Screen-flash after boss death animation completes ---- */
+    if (boss_death_flash > 0) {
+        boss_death_flash--;
+        BGP_REG = ((boss_death_flash & 3) < 2) ? 0x00 : 0xE4;
+
+        if (boss_death_flash == 0) {
+            BGP_REG = 0xE4;
+            for (j = 0; j < 40; j++) move_sprite(j, 0, 0);
+
+            if (game_stage >= 2) {
+                /* Both stages complete → Congratulations */
+                win_overlay_init(2);
+                congrats_timer = 0;
+                game_state = STATE_CONGRATS;
+            } else {
+                /* Stage 1 complete → advance to stage 2 */
+                uint8_t saved_lives  = player.lives;
+                uint8_t saved_power  = player.power_level;
+                uint8_t saved_bombs  = player.bombs;
+                uint16_t saved_score = score;
+
+                game_stage = 2;
+                player_init();
+                player.lives       = saved_lives;
+                player.power_level = saved_power;
+                player.bombs       = saved_bombs;
+
+                bullets_init();
+                enemies_init();
+                enemy_bullets_init();
+                enemies_spawn_wave();
+                score = saved_score;
+                hud_init();
+
+                scroll_y = 0;
+                SCY_REG  = 0;
+                bomb_flash_timer = 0;
+                starfield_init();
+                game_state = STATE_PLAYING;
+            }
+        }
+        return;
+    }
+
+    /* Pause — only when boss is alive (not during death anim) */
+    if ((joy_pressed & J_SELECT) && !boss.dying) {
         pause_init();
         return;
     }
@@ -289,13 +342,13 @@ static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
     /* Bomb flash */
     if (bomb_flash_timer > 0) {
         bomb_flash_timer--;
-        if (bomb_flash_timer == 0)        BGP_REG = 0xE4;
-        else if (bomb_flash_timer & 2)    BGP_REG = 0x00;
-        else                              BGP_REG = 0xE4;
+        if (bomb_flash_timer == 0)     BGP_REG = 0xE4;
+        else if (bomb_flash_timer & 2) BGP_REG = 0x00;
+        else                           BGP_REG = 0xE4;
     }
 
     /* Bomb — deals heavy damage to boss but leaves at least 1 HP */
-    if ((joy_pressed & J_B) && player.bombs > 0 && bomb_flash_timer == 0) {
+    if ((joy_pressed & J_B) && player.bombs > 0 && bomb_flash_timer == 0 && !boss.dying) {
         player.bombs--;
         if (boss.active && boss.hp > 1) {
             uint8_t dmg = (boss.hp > 6) ? 5 : boss.hp - 1;
@@ -313,16 +366,17 @@ static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
     hud_update();
     /* No starfield_scroll — background is frozen during boss fight */
 
-    /* Boss defeated */
-    if (boss.active && boss.hp == 0) {
-        boss_hide();
+    /* Play explosion SFX periodically during the death animation */
+    if (boss.dying && ((boss.death_timer & 15) == 15)) {
         sfx_explosion();
-        /* Hide all boss bullets already done in boss_hide */
-        for (j = 0; j < 29; j++) move_sprite(j, 0, 0);
-        BGP_REG = 0xE4;
-        win_overlay_init(2);
-        congrats_timer = 0;
-        game_state = STATE_CONGRATS;
+    }
+
+    /* Once death animation ends (boss_update sets active=0, dying=0) → screen flash */
+    if (!boss.active && !boss.dying && boss.hp == 0) {
+        boss.hp = 255;  /* prevent re-triggering */
+        sfx_explosion();
+        boss_death_flash = BOSS_DEATH_FLASH_FRAMES;
+        BGP_REG = 0x00;
     }
 
     if (!player.alive) {
@@ -378,6 +432,7 @@ static void playing_update(uint8_t joy, uint8_t joy_pressed) {
     player_update(joy);
     bullets_update();
     enemies_update();
+    enemy_bullets_update();
     pickups_update();
     collision_check();
     hud_update();
