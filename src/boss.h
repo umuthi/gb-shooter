@@ -22,7 +22,8 @@ typedef struct {
     uint8_t dive_up;     /* 0=descending, 1=ascending      */
     uint8_t dying;       /* 1 while death animation plays  */
     uint8_t death_timer; /* counts down 90->0              */
-    uint8_t boss_num;    /* 1=stage-1 boss, 2=stage-2 boss */
+    uint8_t boss_num;    /* 1=stage-1 boss, 2=stage-2 boss, 3=final boss */
+    uint8_t phase2;      /* 1 after final boss first death (hp replenished) */
 } Boss;
 
 typedef struct {

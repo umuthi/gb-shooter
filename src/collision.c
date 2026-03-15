@@ -113,6 +113,90 @@ void collision_check(void) {
 }
 
 /*
+ * Enemy-only collision during final-boss phase 2.
+ * Handles: player bullets vs enemies, enemy body vs player,
+ *          enemy bullets vs player, player vs pickups.
+ * Call in addition to collision_check_boss() during phase 2.
+ */
+void collision_check_enemies(void) {
+    uint8_t i, j;
+    uint8_t bx, by, ex, ey;
+    uint8_t px, py;
+
+    /* Player bullets vs enemies */
+    for (i = 0; i < BULLET_COUNT; i++) {
+        if (!bullets[i].active) continue;
+        bx = bullets[i].x;
+        by = bullets[i].y;
+        for (j = 0; j < ENEMY_COUNT; j++) {
+            if (!enemies[j].active) continue;
+            ex = enemies[j].x;
+            ey = enemies[j].y;
+            if (AABB_HIT(bx, by, ex, ey)) {
+                bullets[i].active = 0;
+                move_sprite(BULLET_OAM_BASE + i, 0, 0);
+                pickup_try_spawn(ex, ey);
+                enemies[j].active = 0;
+                move_sprite(ENEMY_OAM_BASE + j, 0, 0);
+                if (enemies_alive > 0) enemies_alive--;
+                hud_add_score(10);
+                sfx_explosion();
+                break;
+            }
+        }
+    }
+
+    /* Enemy body vs player */
+    if (player.alive && player.inv_timer == 0) {
+        px = player.x; py = player.y;
+        for (j = 0; j < ENEMY_COUNT; j++) {
+            if (!enemies[j].active) continue;
+            if (AABB_HIT(px, py, enemies[j].x, enemies[j].y)) {
+                player_hit();
+                enemies[j].active = 0;
+                move_sprite(ENEMY_OAM_BASE + j, 0, 0);
+                if (enemies_alive > 0) enemies_alive--;
+                break;
+            }
+        }
+    }
+
+    /* Enemy bullets vs player */
+    if (player.alive && player.inv_timer == 0) {
+        px = player.x; py = player.y;
+        for (i = 0; i < ENEMY_BULLET_COUNT; i++) {
+            if (!enemy_bullets[i].active) continue;
+            if (AABB_HIT(px, py, enemy_bullets[i].x, enemy_bullets[i].y)) {
+                enemy_bullets[i].active = 0;
+                move_sprite(ENEMY_BULLET_BASE + i, 0, 0);
+                player_hit();
+                break;
+            }
+        }
+    }
+
+    /* Player vs pickups (dropped by enemies killed during phase 2) */
+    if (player.alive) {
+        px = player.x; py = player.y;
+        for (i = 0; i < PICKUP_COUNT; i++) {
+            if (!pickups[i].active) continue;
+            if (AABB_HIT(px, py, pickups[i].x, pickups[i].y)) {
+                if (pickups[i].type == PICKUP_TYPE_HEART) {
+                    if (player.lives < PLAYER_LIVES_MAX) player.lives++;
+                } else if (pickups[i].type == PICKUP_TYPE_POWER) {
+                    if (player.power_level < 5) player.power_level++;
+                } else if (pickups[i].type == PICKUP_TYPE_BOMB) {
+                    if (player.bombs < 5) player.bombs++;
+                }
+                pickups[i].active = 0;
+                move_sprite(PICKUP_OAM_BASE + i, 0, 0);
+                sfx_pickup();
+            }
+        }
+    }
+}
+
+/*
  * Boss-phase collision: player bullets vs boss, boss bullets vs player,
  * boss body vs player.  Call instead of collision_check() during STATE_BOSS.
  */

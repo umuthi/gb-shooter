@@ -15,6 +15,7 @@
 #define PATTERN_SWOOP     2
 #define PATTERN_DIAGONAL  3
 #define PATTERN_SINE      4
+#define PATTERN_KAMIKAZE  5  /* locks on player position after brief hover, then dives */
 
 typedef struct {
     uint8_t x;

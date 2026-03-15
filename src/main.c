@@ -36,6 +36,9 @@ static uint8_t bomb_flash_timer;
 #define BOSS_DEATH_FLASH_FRAMES  30
 static uint8_t boss_death_flash;
 
+/* Final boss phase-2: set when enemy wave is first spawned alongside boss 3 */
+static uint8_t boss_p2_spawned;
+
 /* ---- Starfield (scrolling background) ---- */
 static uint8_t scroll_y;
 
@@ -280,8 +283,9 @@ static void boss_fight_init(void) {
     BGP_REG = 0xE4;
     bomb_flash_timer  = 0;
     boss_death_flash  = 0;
+    boss_p2_spawned   = 0;
 
-    boss_init(game_stage);   /* stage 1 → boss 1,  stage 2 → boss 2 */
+    boss_init(game_stage);   /* stage 1 → boss 1, stage 2 → boss 2, stage 3 → final boss */
     hud_init();
     game_state = STATE_BOSS;
 }
@@ -298,19 +302,19 @@ static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
             BGP_REG = 0xE4;
             for (j = 0; j < 40; j++) move_sprite(j, 0, 0);
 
-            if (game_stage >= 2) {
-                /* Both stages complete → Congratulations */
+            if (game_stage >= 3) {
+                /* All stages complete → Congratulations */
                 win_overlay_init(2);
                 congrats_timer = 0;
                 game_state = STATE_CONGRATS;
             } else {
-                /* Stage 1 complete → advance to stage 2 */
-                uint8_t saved_lives  = player.lives;
-                uint8_t saved_power  = player.power_level;
-                uint8_t saved_bombs  = player.bombs;
-                uint16_t saved_score = score;
+                /* Advance to next stage, preserving player stats */
+                uint8_t  saved_lives  = player.lives;
+                uint8_t  saved_power  = player.power_level;
+                uint8_t  saved_bombs  = player.bombs;
+                uint16_t saved_score  = score;
 
-                game_stage = 2;
+                game_stage++;
                 player_init();
                 player.lives       = saved_lives;
                 player.power_level = saved_power;
@@ -320,8 +324,10 @@ static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
                 enemies_init();
                 enemy_bullets_init();
                 enemies_spawn_wave();
-                score = saved_score;
+
+                /* Restore score AFTER hud_init which resets it to 0 */
                 hud_init();
+                score = saved_score;
 
                 scroll_y = 0;
                 SCY_REG  = 0;
@@ -331,6 +337,14 @@ static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
             }
         }
         return;
+    }
+
+    /* ---- Final boss phase 2: spawn enemy wave when HP replenishes ---- */
+    if (boss.phase2 && !boss_p2_spawned) {
+        boss_p2_spawned = 1;
+        enemies_init();
+        enemy_bullets_init();
+        enemies_spawn_wave();
     }
 
     /* Pause — only when boss is alive (not during death anim) */
@@ -363,15 +377,28 @@ static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
     bullets_update();
     boss_update();
     collision_check_boss();
+
+    /* Phase 2: also update enemy waves that attack alongside the final boss */
+    if (boss.phase2) {
+        enemies_update();
+        enemy_bullets_update();
+        pickups_update();
+        collision_check_enemies();
+        /* Respawn enemy wave when cleared so pressure never lets up */
+        if (enemies_alive == 0) {
+            enemies_spawn_wave();
+        }
+    }
+
     hud_update();
     /* No starfield_scroll — background is frozen during boss fight */
 
-    /* Play explosion SFX periodically during the death animation */
+    /* Explosion SFX during death animation */
     if (boss.dying && ((boss.death_timer & 15) == 15)) {
         sfx_explosion();
     }
 
-    /* Once death animation ends (boss_update sets active=0, dying=0) → screen flash */
+    /* Death animation ended → trigger screen flash, then stage transition */
     if (!boss.active && !boss.dying && boss.hp == 0) {
         boss.hp = 255;  /* prevent re-triggering */
         sfx_explosion();

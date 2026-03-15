@@ -1,4 +1,5 @@
 #include "enemy.h"
+#include "player.h"
 #include "tiles.h"
 #include <gbdk/platform.h>
 
@@ -80,9 +81,30 @@ void enemies_spawn_wave(void) {
         e->dir        = i & 1;
         e->speed_x    = (pat == PATTERN_DIAGONAL) ? ((i & 1) ? 1 : -1) : 0;
         e->tile       = (i & 1) ? SPR_ENEMY_B : SPR_ENEMY_A;
-        e->fire_timer = 70 + (uint8_t)(i * 18); /* stagger so enemies don't all fire at once */
+        e->fire_timer = 70 + (uint8_t)(i * 18);
         set_sprite_tile(ENEMY_OAM_BASE + i, e->tile);
+        set_sprite_prop(ENEMY_OAM_BASE + i, 0x10U);
         move_sprite(ENEMY_OAM_BASE + i, e->x, e->y);
+        enemies_alive++;
+    }
+
+    /* Stage 3+: one kamikaze enemy joins every wave */
+    if (game_stage >= 3 && count < ENEMY_COUNT) {
+        e = &enemies[count];
+        e->active     = 1;
+        e->x          = 64 + (uint8_t)(wave_num << 3) % 64; /* vary start x */
+        e->y          = 0;
+        e->pattern    = PATTERN_KAMIKAZE;
+        e->speed_y    = 1;  /* slow hover until lock-on at timer==20 */
+        e->timer      = 0;
+        e->dir        = 0;  /* 0=not yet locked, set to 1 when charging */
+        e->speed_x    = 0;
+        e->tile       = SPR_ENEMY_A;
+        e->fire_timer = 0;  /* kamikazes do not shoot */
+        /* Y-flip + OBP1: makes the sprite look like it's diving */
+        set_sprite_tile(ENEMY_OAM_BASE + count, e->tile);
+        set_sprite_prop(ENEMY_OAM_BASE + count, 0x50U);
+        move_sprite(ENEMY_OAM_BASE + count, e->x, e->y);
         enemies_alive++;
     }
 
@@ -173,6 +195,24 @@ void enemies_update(void) {
                 uint8_t phase = (e->timer >> 3) & 3;
                 if (phase < 2) e->x++;
                 else           e->x--;
+            }
+            break;
+
+        case PATTERN_KAMIKAZE:
+            /* Hover slowly for 20 frames, then lock onto player and charge */
+            if (e->timer == 20) {
+                /* Lock direction toward player's current position */
+                if (player.x > e->x + 4)       e->speed_x =  2;
+                else if (player.x < e->x - 4)  e->speed_x = -2;
+                else                            e->speed_x =  0;
+                e->speed_y = 3;   /* charge speed */
+                e->dir     = 1;   /* 1 = locked and charging */
+            }
+            e->y += e->speed_y;
+            if (e->dir == 1) {
+                e->x = (uint8_t)((int8_t)e->x + e->speed_x);
+                if (e->x < 8)   e->x = 8;
+                if (e->x > 152) e->x = 152;
             }
             break;
         }
