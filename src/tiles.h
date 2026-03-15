@@ -42,6 +42,9 @@
 #define TILE_EXCLAIM      40
 #define TILE_LETTER_X     41
 #define TILE_LETTER_Z     42
+#define TILE_APOSTROPHE   43
+#define TILE_COMMA        44
+#define TILE_QUESTION     45
 
 /* Sprite tile indices (loaded into sprite VRAM separately) */
 #define SPR_PLAYER        0
@@ -61,7 +64,7 @@
 extern const uint8_t bg_tiles[];
 extern const uint8_t sprite_tiles[];
 
-#define BG_TILES_COUNT    43
+#define BG_TILES_COUNT    46
 #define SPR_TILES_COUNT   13
 
 void tiles_load(void);
