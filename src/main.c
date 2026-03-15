@@ -318,6 +318,7 @@ static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
                 uint8_t  saved_lives  = player.lives;
                 uint8_t  saved_power  = player.power_level;
                 uint8_t  saved_bombs  = player.bombs;
+                uint8_t  saved_dev    = player.dev_mode;
                 uint16_t saved_score  = score;
 
                 game_stage++;
@@ -325,6 +326,7 @@ static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
                 player.lives       = saved_lives;
                 player.power_level = saved_power;
                 player.bombs       = saved_bombs;
+                player.dev_mode    = saved_dev;
 
                 bullets_init();
                 enemies_init();
