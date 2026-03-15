@@ -1,0 +1,10 @@
+build/
+src/*.o
+src/*.asm
+src/*.lst
+src/*.map
+src/*.sym
+a.map
+a.s19
+*.noi
+*.sav
