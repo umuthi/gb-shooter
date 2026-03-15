@@ -13,7 +13,8 @@ SRCS := src/main.c \
         src/collision.c \
         src/hud.c \
         src/sound.c \
-        src/pickup.c
+        src/pickup.c \
+        src/dialogue.c
 
 OBJS := $(SRCS:.c=.o)
 

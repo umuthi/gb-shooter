@@ -191,8 +191,9 @@ void boss_init(uint8_t bnum) {
     boss.dive_up     = 0;
     boss.dying       = 0;
     boss.death_timer = 0;
-    boss.boss_num    = bnum;
-    boss.phase2      = 0;
+    boss.boss_num        = bnum;
+    boss.phase2          = 0;
+    boss.phase2_pending  = 0;
 
     set_sprite_tile(BOSS_OAM_BASE + 0, SPR_BOSS_TL);
     set_sprite_tile(BOSS_OAM_BASE + 1, SPR_BOSS_TR);
@@ -222,6 +223,44 @@ void boss_hide(void) {
         boss_bullets[i].active = 0;
         move_sprite(BOSS_BULLET_BASE + i, 0, 0);
     }
+}
+
+/* Called by main.c after MID_BOSS3 dialogue to start final boss phase 2 */
+void boss_phase2_begin(void) {
+    uint8_t i;
+    boss.phase2_pending = 0;
+    boss.phase2         = 1;
+    boss.active         = 1;
+    boss.hp             = BOSS_HP_MAX;
+    boss.phase          = 0;
+    boss.timer          = 0;
+    boss.dir            = 1;
+    boss.fire_pat       = 0;
+    boss.fire_timer     = 30;
+    boss.dying          = 0;
+    boss.death_timer    = 0;
+    boss.x              = 72;
+    boss.y              = BOSS_Y_HOME;
+
+    set_sprite_tile(BOSS_OAM_BASE + 0, SPR_BOSS_TL);
+    set_sprite_tile(BOSS_OAM_BASE + 1, SPR_BOSS_TR);
+    set_sprite_tile(BOSS_OAM_BASE + 2, SPR_BOSS_BL);
+    set_sprite_tile(BOSS_OAM_BASE + 3, SPR_BOSS_BR);
+    set_sprite_prop(BOSS_OAM_BASE + 0, 0x10U);
+    set_sprite_prop(BOSS_OAM_BASE + 1, 0x10U);
+    set_sprite_prop(BOSS_OAM_BASE + 2, 0x10U);
+    set_sprite_prop(BOSS_OAM_BASE + 3, 0x10U);
+    move_sprite(BOSS_OAM_BASE + 0, boss.x,     boss.y);
+    move_sprite(BOSS_OAM_BASE + 1, boss.x + 8, boss.y);
+    move_sprite(BOSS_OAM_BASE + 2, boss.x,     boss.y + 8);
+    move_sprite(BOSS_OAM_BASE + 3, boss.x + 8, boss.y + 8);
+
+    for (i = 0; i < BOSS_BULLET_COUNT; i++) {
+        boss_bullets[i].active = 0;
+        move_sprite(BOSS_BULLET_BASE + i, 0, 0);
+    }
+
+    boss_draw_health();
 }
 
 void boss_hit(uint8_t damage) {
@@ -271,20 +310,12 @@ void boss_update(void) {
 
     /* ---- Detect death ---- */
     if (boss.hp == 0) {
-        /* Final boss first death: replenish HP and enter phase 2 */
-        if (boss.boss_num == 3 && !boss.phase2) {
-            boss.phase2 = 1;
-            boss.hp     = BOSS_HP_MAX;
-            boss_draw_health();
-            /* Reset movement to sweep so charge pattern restarts cleanly */
-            boss.phase    = 0;
-            boss.timer    = 0;
-            boss.dir      = 1;
-            boss.fire_pat = 0;
-            boss.fire_timer = 30; /* short pause before resuming fire */
-            return;
+        /* Final boss first death: mark phase2_pending so main.c shows
+           the mid-boss dialogue before replenishing HP */
+        if (boss.boss_num == 3 && !boss.phase2 && !boss.phase2_pending) {
+            boss.phase2_pending = 1;
         }
-        /* Normal death — start flashing animation */
+        /* Always play the dying animation */
         boss.dying       = 1;
         boss.death_timer = 90;
         for (i = 0; i < BOSS_BULLET_COUNT; i++) {

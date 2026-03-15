@@ -29,6 +29,20 @@
 #define TILE_LETTER_D     29
 #define TILE_BAR          30  /* solid block for boss health bar */
 
+/* Dialogue letter tiles — added for cutscene system */
+#define TILE_LETTER_C     31
+#define TILE_LETTER_F     32
+#define TILE_LETTER_I     33
+#define TILE_LETTER_K     34
+#define TILE_LETTER_L     35
+#define TILE_LETTER_N     36
+#define TILE_LETTER_W     37
+#define TILE_LETTER_Y     38
+#define TILE_PERIOD       39
+#define TILE_EXCLAIM      40
+#define TILE_LETTER_X     41
+#define TILE_LETTER_Z     42
+
 /* Sprite tile indices (loaded into sprite VRAM separately) */
 #define SPR_PLAYER        0
 #define SPR_BULLET        1
@@ -47,7 +61,7 @@
 extern const uint8_t bg_tiles[];
 extern const uint8_t sprite_tiles[];
 
-#define BG_TILES_COUNT    31
+#define BG_TILES_COUNT    43
 #define SPR_TILES_COUNT   13
 
 void tiles_load(void);

@@ -9,5 +9,6 @@ void sfx_explosion(void);
 void sfx_player_hit(void);
 void sfx_pickup(void);
 void sfx_bomb(void);
+void sfx_type(void);
 
 #endif

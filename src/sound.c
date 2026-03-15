@@ -74,6 +74,15 @@ void sfx_pickup(void) {
     NR14_REG = 0xC7;  /* Trigger + length, freq high=7 */
 }
 
+void sfx_type(void) {
+    /* Very short high-pitched tick for dialogue typing — CH1 with length enable */
+    NR10_REG = 0x00;  /* no frequency sweep */
+    NR11_REG = 0xF8;  /* 75% duty, max length (63) so it stops quickly */
+    NR12_REG = 0x52;  /* Vol=5, decrease, step=2 → very brief */
+    NR13_REG = 0x00;  /* freq low byte */
+    NR14_REG = 0xC7;  /* Trigger + length enable, freq high=7 → ~4186 Hz */
+}
+
 void sfx_bomb(void) {
     /* Big screen-clearing explosion on CH4 */
     NR41_REG = 0x00;

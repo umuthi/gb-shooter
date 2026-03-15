@@ -11,6 +11,7 @@
 #include "hud.h"
 #include "sound.h"
 #include "pickup.h"
+#include "dialogue.h"
 
 /* Game states */
 #define STATE_TITLE     0
@@ -19,6 +20,15 @@
 #define STATE_PAUSED    3
 #define STATE_BOSS      4
 #define STATE_CONGRATS  5
+#define STATE_DIALOGUE  6
+
+/* Actions performed when current dialogue scene finishes */
+#define DLACT_START_PLAYING  0
+#define DLACT_BOSS_FIGHT     1
+#define DLACT_NEXT_STAGE     2
+#define DLACT_BOSS_PHASE2    3
+#define DLACT_ENDING         4
+#define DLACT_CONGRATS       5
 
 /* Wave threshold to trigger the boss */
 #define BOSS_WAVE       20
@@ -38,6 +48,9 @@ static uint8_t boss_death_flash;
 
 /* Final boss phase-2: set when enemy wave is first spawned alongside boss 3 */
 static uint8_t boss_p2_spawned;
+
+/* Post-dialogue transition target */
+static uint8_t post_dialogue_act;
 
 /* ---- Starfield (scrolling background) ---- */
 static uint8_t scroll_y;
@@ -193,6 +206,82 @@ static void win_overlay_init(uint8_t kind) {
     SHOW_WIN;
 }
 
+/* Forward declaration — boss_fight_init is defined later in this file */
+static void boss_fight_init(void);
+
+/* ---- Post-dialogue transition ---- */
+static void handle_post_dialogue(void) {
+    uint8_t  saved_lives;
+    uint8_t  saved_power;
+    uint8_t  saved_bombs;
+    uint8_t  saved_dev;
+    uint16_t saved_score;
+
+    switch (post_dialogue_act) {
+    case DLACT_START_PLAYING:
+        /* Player/enemies already init'd in title_update — just restore HUD */
+        hud_init();
+        scroll_y = 0;
+        SCY_REG  = 0;
+        game_state = STATE_PLAYING;
+        break;
+
+    case DLACT_BOSS_FIGHT:
+        boss_fight_init();
+        break;
+
+    case DLACT_NEXT_STAGE:
+        saved_lives = player.lives;
+        saved_power = player.power_level;
+        saved_bombs = player.bombs;
+        saved_dev   = player.dev_mode;
+        saved_score = score;
+
+        game_stage++;
+        player_init();
+        player.lives       = saved_lives;
+        player.power_level = saved_power;
+        player.bombs       = saved_bombs;
+        player.dev_mode    = saved_dev;
+
+        bullets_init();
+        enemies_init();
+        enemy_bullets_init();
+        enemies_spawn_wave();
+
+        hud_init();
+        score = saved_score;
+
+        scroll_y = 0;
+        SCY_REG  = 0;
+        bomb_flash_timer = 0;
+        starfield_init();
+        game_state = STATE_PLAYING;
+        break;
+
+    case DLACT_BOSS_PHASE2:
+        saved_score = score;
+        boss_phase2_begin();
+        boss_p2_spawned = 0;
+        hud_init();
+        score = saved_score;
+        game_state = STATE_BOSS;
+        break;
+
+    case DLACT_ENDING:
+        post_dialogue_act = DLACT_CONGRATS;
+        dialogue_start(DIALOGUE_ENDING);
+        /* stay in STATE_DIALOGUE */
+        break;
+
+    case DLACT_CONGRATS:
+        win_overlay_init(2);
+        congrats_timer = 0;
+        game_state = STATE_CONGRATS;
+        break;
+    }
+}
+
 /* ---- Title screen ---- */
 static void title_init(void) {
     uint8_t i;
@@ -221,8 +310,10 @@ static void title_update(uint8_t joy) {
         enemies_init();
         enemy_bullets_init();
         enemies_spawn_wave();
-        hud_init();
-        game_state = STATE_PLAYING;
+        /* Show intro dialogue before gameplay begins */
+        post_dialogue_act = DLACT_START_PLAYING;
+        dialogue_start(DIALOGUE_INTRO);
+        game_state = STATE_DIALOGUE;
     }
 }
 
@@ -308,40 +399,23 @@ static void boss_fight_update(uint8_t joy, uint8_t joy_pressed) {
             BGP_REG = 0xE4;
             for (j = 0; j < 40; j++) move_sprite(j, 0, 0);
 
-            if (game_stage >= 3) {
-                /* All stages complete → Congratulations */
-                win_overlay_init(2);
-                congrats_timer = 0;
-                game_state = STATE_CONGRATS;
+            if (boss.phase2_pending) {
+                /* Final boss first death: mid-boss dialogue → phase 2 */
+                post_dialogue_act = DLACT_BOSS_PHASE2;
+                dialogue_start(DIALOGUE_MID_BOSS3);
+                game_state = STATE_DIALOGUE;
+            } else if (game_stage >= 3) {
+                /* Final boss final death: post-boss dialogue → ending */
+                post_dialogue_act = DLACT_ENDING;
+                dialogue_start(DIALOGUE_POST_BOSS3);
+                game_state = STATE_DIALOGUE;
             } else {
-                /* Advance to next stage, preserving player stats */
-                uint8_t  saved_lives  = player.lives;
-                uint8_t  saved_power  = player.power_level;
-                uint8_t  saved_bombs  = player.bombs;
-                uint8_t  saved_dev    = player.dev_mode;
-                uint16_t saved_score  = score;
-
-                game_stage++;
-                player_init();
-                player.lives       = saved_lives;
-                player.power_level = saved_power;
-                player.bombs       = saved_bombs;
-                player.dev_mode    = saved_dev;
-
-                bullets_init();
-                enemies_init();
-                enemy_bullets_init();
-                enemies_spawn_wave();
-
-                /* Restore score AFTER hud_init which resets it to 0 */
-                hud_init();
-                score = saved_score;
-
-                scroll_y = 0;
-                SCY_REG  = 0;
-                bomb_flash_timer = 0;
-                starfield_init();
-                game_state = STATE_PLAYING;
+                /* Boss 1 or 2 death: post-boss dialogue → next stage */
+                uint8_t post_scene = (game_stage == 1) ? DIALOGUE_POST_BOSS1
+                                                        : DIALOGUE_POST_BOSS2;
+                post_dialogue_act = DLACT_NEXT_STAGE;
+                dialogue_start(post_scene);
+                game_state = STATE_DIALOGUE;
             }
         }
         return;
@@ -475,7 +549,16 @@ static void playing_update(uint8_t joy, uint8_t joy_pressed) {
 
     if (enemies_alive == 0) {
         if (wave_num >= BOSS_WAVE) {
-            boss_fight_init();
+            /* Show pre-boss dialogue, then transition to boss fight */
+            {
+                uint8_t pre_scene = (game_stage == 1) ? DIALOGUE_PRE_BOSS1 :
+                                    (game_stage == 2) ? DIALOGUE_PRE_BOSS2 :
+                                                        DIALOGUE_PRE_BOSS3;
+                for (j = 0; j < 40; j++) move_sprite(j, 0, 0);
+                post_dialogue_act = DLACT_BOSS_FIGHT;
+                dialogue_start(pre_scene);
+                game_state = STATE_DIALOGUE;
+            }
         } else {
             enemies_spawn_wave();
         }
@@ -542,6 +625,12 @@ void main(void) {
             break;
         case STATE_CONGRATS:
             congrats_update(joy);
+            break;
+        case STATE_DIALOGUE:
+            dialogue_update(joy_pressed);
+            if (dialogue_is_done()) {
+                handle_post_dialogue();
+            }
             break;
         }
 
