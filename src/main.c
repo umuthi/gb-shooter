@@ -199,8 +199,12 @@ static void title_init(void) {
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);
 
     scroll_y = 0;
-    SCY_REG = 0;
+    SCY_REG  = 0;
     bomb_flash_timer = 0;
+
+    /* Re-seed the BG map so any health-bar tiles written during the boss
+       fight are overwritten before the next playthrough's scroll reveals them */
+    starfield_init();
 
     pickups_init();
     win_overlay_init(0);
@@ -209,14 +213,16 @@ static void title_init(void) {
 
 static void title_update(uint8_t joy) {
     if (joy & (J_START | J_A)) {
+        uint8_t want_dev = (joy & J_START) ? 1 : 0;
         game_stage = 1;
-        game_state = STATE_PLAYING;
         player_init();
+        player.dev_mode = want_dev;   /* START = dev mode, A = normal */
         bullets_init();
         enemies_init();
         enemy_bullets_init();
         enemies_spawn_wave();
         hud_init();
+        game_state = STATE_PLAYING;
     }
 }
 

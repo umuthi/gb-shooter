@@ -15,6 +15,7 @@ void player_init(void) {
     player.alive = 1;
     player.power_level = 1;
     player.bombs = 0;
+    player.dev_mode = 0;
     move_sprite(PLAYER_OAM_SLOT, player.x, player.y);
     set_sprite_tile(PLAYER_OAM_SLOT, SPR_PLAYER);
     set_sprite_prop(PLAYER_OAM_SLOT, 0x00U); /* OBP0 → shade 2 (dark gray) */
@@ -76,6 +77,7 @@ void player_update(uint8_t joy) {
 }
 
 void player_hit(void) {
+    if (player.dev_mode) return;     /* invincible in developer mode */
     if (player.inv_timer > 0) return;
     player.lives--;
     player.inv_timer = PLAYER_INV_FRAMES;

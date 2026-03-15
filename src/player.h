@@ -24,6 +24,7 @@ typedef struct {
     uint8_t alive;
     uint8_t power_level;
     uint8_t bombs;
+    uint8_t dev_mode;    /* 1 = developer invincibility (no damage taken) */
 } Player;
 
 extern Player player;

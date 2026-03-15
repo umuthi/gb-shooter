@@ -10,6 +10,7 @@ static uint8_t prev_lives;
 static uint8_t prev_power;
 static uint8_t prev_bombs;
 static uint16_t prev_score;
+static uint8_t prev_dev;
 
 static void hud_draw_lives(uint8_t lives) {
     uint8_t buf[5];
@@ -73,6 +74,7 @@ void hud_init(void) {
     prev_power = 0xFF;
     prev_bombs = 0xFF;
     prev_score = 0xFFFF;
+    prev_dev   = 0xFF;
     hud_update();
 }
 
@@ -96,5 +98,11 @@ void hud_update(void) {
     if (score != prev_score) {
         hud_draw_score();
         prev_score = score;
+    }
+    /* Dev mode indicator: 'D' in the gap between bombs and score */
+    if (player.dev_mode != prev_dev) {
+        uint8_t d = player.dev_mode ? TILE_LETTER_D : TILE_BLACK;
+        set_win_tiles(14, 0, 1, 1, &d);
+        prev_dev = player.dev_mode;
     }
 }

@@ -81,7 +81,7 @@ void enemies_spawn_wave(void) {
         e->dir        = i & 1;
         e->speed_x    = (pat == PATTERN_DIAGONAL) ? ((i & 1) ? 1 : -1) : 0;
         e->tile       = (i & 1) ? SPR_ENEMY_B : SPR_ENEMY_A;
-        e->fire_timer = 70 + (uint8_t)(i * 18);
+        e->fire_timer = 20 + (uint8_t)(i * 8); /* fire while still high on screen */
         set_sprite_tile(ENEMY_OAM_BASE + i, e->tile);
         set_sprite_prop(ENEMY_OAM_BASE + i, 0x10U);
         move_sprite(ENEMY_OAM_BASE + i, e->x, e->y);
