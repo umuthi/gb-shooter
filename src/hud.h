@@ -16,5 +16,7 @@ extern uint8_t score_multiplier;
 void hud_init(void);
 void hud_add_score(uint8_t points);
 void hud_update(void);
+uint8_t hud_enemy_pts(void);
+uint8_t hud_boss_pts(void);
 
 #endif

@@ -115,16 +115,18 @@ static void win_write_centered(uint8_t row, const uint8_t *tiles, uint8_t len) {
 static void win_draw_score_row(uint8_t row, uint16_t s) {
     uint8_t buf[20];
     uint8_t i;
-    uint8_t d[4];
+    uint8_t d[5];
+    d[4] = s % 10; s /= 10;
     d[3] = s % 10; s /= 10;
     d[2] = s % 10; s /= 10;
     d[1] = s % 10; s /= 10;
     d[0] = s % 10;
     for (i = 0; i < 20; i++) buf[i] = TILE_BLACK;
-    buf[8]  = TILE_DIGIT_0 + d[0];
-    buf[9]  = TILE_DIGIT_0 + d[1];
-    buf[10] = TILE_DIGIT_0 + d[2];
-    buf[11] = TILE_DIGIT_0 + d[3];
+    buf[7]  = TILE_DIGIT_0 + d[0];
+    buf[8]  = TILE_DIGIT_0 + d[1];
+    buf[9]  = TILE_DIGIT_0 + d[2];
+    buf[10] = TILE_DIGIT_0 + d[3];
+    buf[11] = TILE_DIGIT_0 + d[4];
     set_win_tiles(0, row, 20, 1, buf);
 }
 
@@ -619,7 +621,7 @@ static void playing_update(uint8_t joy, uint8_t joy_pressed) {
             enemies[j].active = 0;
             move_sprite(ENEMY_OAM_BASE + j, 0, 0);
             if (enemies_alive > 0) enemies_alive--;
-            hud_add_score(10);
+            hud_add_score(hud_enemy_pts());
         }
         sfx_bomb();
         bomb_flash_timer = BOMB_FLASH_FRAMES;

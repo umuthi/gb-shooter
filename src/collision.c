@@ -52,7 +52,7 @@ void collision_check(void) {
                 enemies[j].active = 0;
                 move_sprite(ENEMY_OAM_BASE + j, 0, 0);
                 if (enemies_alive > 0) enemies_alive--;
-                hud_add_score(10);
+                hud_add_score(hud_enemy_pts());
                 sfx_explosion();
                 break;
             }
@@ -221,7 +221,7 @@ void collision_check_boss(void) {
             bullets[i].active = 0;
             move_sprite(BULLET_OAM_BASE + i, 0, 0);
             boss_hit(1);
-            hud_add_score(5);
+            hud_add_score(hud_boss_pts());
             sfx_explosion();
         }
     }
