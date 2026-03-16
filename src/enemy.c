@@ -76,7 +76,7 @@ void enemies_spawn_wave(void) {
         e->x          = 20 + (i * (140 / count));
         e->y          = 10 + (i * 4);
         e->pattern    = pat;
-        e->speed_y    = sy;
+        e->speed_y    = sy + (difficulty == DIFFICULTY_HARD ? 1 : 0);
         e->timer      = i << 3;
         e->dir        = i & 1;
         e->speed_x    = (pat == PATTERN_DIAGONAL) ? ((i & 1) ? 1 : -1) : 0;
@@ -205,7 +205,7 @@ void enemies_update(void) {
                 if (player.x > e->x + 4)       e->speed_x =  2;
                 else if (player.x < e->x - 4)  e->speed_x = -2;
                 else                            e->speed_x =  0;
-                e->speed_y = 3;   /* charge speed */
+                e->speed_y = 3 + (difficulty == DIFFICULTY_HARD ? 1 : 0);   /* charge speed */
                 e->dir     = 1;   /* 1 = locked and charging */
             }
             e->y += e->speed_y;

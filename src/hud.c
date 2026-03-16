@@ -4,6 +4,7 @@
 #include <gbdk/platform.h>
 
 uint16_t score;
+uint8_t  score_multiplier;
 
 /* Cached values — only redraw the section that actually changed */
 static uint8_t prev_lives;
@@ -11,6 +12,7 @@ static uint8_t prev_power;
 static uint8_t prev_bombs;
 static uint16_t prev_score;
 static uint8_t prev_dev;
+static uint8_t prev_multiplier;
 
 static void hud_draw_lives(uint8_t lives) {
     uint8_t buf[5];
@@ -34,7 +36,19 @@ static void hud_draw_bombs(uint8_t bombs) {
     uint8_t buf[2];
     buf[0] = TILE_LETTER_B;
     buf[1] = TILE_DIGIT_0 + (bombs <= 9 ? bombs : 9);
-    set_win_tiles(12, 0, 2, 1, buf);
+    set_win_tiles(11, 0, 2, 1, buf);
+}
+
+static void hud_draw_multiplier(uint8_t mult) {
+    uint8_t buf[2];
+    if (mult > 1) {
+        buf[0] = TILE_LETTER_X;
+        buf[1] = TILE_DIGIT_0 + (mult <= 9 ? mult : 9);
+    } else {
+        buf[0] = TILE_BLACK;
+        buf[1] = TILE_BLACK;
+    }
+    set_win_tiles(14, 0, 2, 1, buf);
 }
 
 static void hud_draw_score(void) {
@@ -52,7 +66,7 @@ static void hud_draw_score(void) {
 }
 
 void hud_add_score(uint8_t points) {
-    score += points;
+    score += (uint16_t)points * score_multiplier;
     if (score > 9999) score = 9999;
 }
 
@@ -60,6 +74,7 @@ void hud_init(void) {
     uint8_t i;
     uint8_t black_row[20];
     score = 0;
+    score_multiplier = 1;
 
     /* Fill entire window row with black tiles */
     for (i = 0; i < 20; i++) black_row[i] = TILE_BLACK;
@@ -70,11 +85,12 @@ void hud_init(void) {
     SHOW_WIN;
 
     /* Force-draw everything on init */
-    prev_lives = 0xFF;
-    prev_power = 0xFF;
-    prev_bombs = 0xFF;
-    prev_score = 0xFFFF;
-    prev_dev   = 0xFF;
+    prev_lives       = 0xFF;
+    prev_power       = 0xFF;
+    prev_bombs       = 0xFF;
+    prev_score       = 0xFFFF;
+    prev_dev         = 0xFF;
+    prev_multiplier  = 0xFF;
     hud_update();
 }
 
@@ -99,10 +115,15 @@ void hud_update(void) {
         hud_draw_score();
         prev_score = score;
     }
-    /* Dev mode indicator: 'D' in the gap between bombs and score */
+    /* Dev mode indicator: 'D' at col 13, between bombs and multiplier */
     if (player.dev_mode != prev_dev) {
         uint8_t d = player.dev_mode ? TILE_LETTER_D : TILE_BLACK;
-        set_win_tiles(14, 0, 1, 1, &d);
+        set_win_tiles(13, 0, 1, 1, &d);
         prev_dev = player.dev_mode;
+    }
+    /* Score multiplier: X + digit at cols 14-15; hidden when multiplier == 1 */
+    if (score_multiplier != prev_multiplier) {
+        hud_draw_multiplier(score_multiplier);
+        prev_multiplier = score_multiplier;
     }
 }

@@ -14,13 +14,14 @@
 #include "dialogue.h"
 
 /* Game states */
-#define STATE_TITLE     0
-#define STATE_PLAYING   1
-#define STATE_GAMEOVER  2
-#define STATE_PAUSED    3
-#define STATE_BOSS      4
-#define STATE_CONGRATS  5
-#define STATE_DIALOGUE  6
+#define STATE_TITLE      0
+#define STATE_PLAYING    1
+#define STATE_GAMEOVER   2
+#define STATE_PAUSED     3
+#define STATE_BOSS       4
+#define STATE_CONGRATS   5
+#define STATE_DIALOGUE   6
+#define STATE_DIFFICULTY 7
 
 /* Actions performed when current dialogue scene finishes */
 #define DLACT_START_PLAYING  0
@@ -33,10 +34,17 @@
 /* Wave threshold to trigger the boss */
 #define BOSS_WAVE       20
 
+/* Difficulty: DIFFICULTY_EASY/NORMAL/HARD — defined in player.h, set by select screen */
+uint8_t difficulty;
+
 static uint8_t game_state;
 static uint8_t frame_count;
 static uint8_t gameover_timer;
 static uint8_t congrats_timer;
+
+/* Difficulty select screen state */
+static uint8_t diff_cursor;    /* 0=EASY, 1=NORMAL, 2=HARD */
+static uint8_t diff_want_dev;  /* dev mode flag saved from title button press */
 
 /* Bomb flash animation state */
 #define BOMB_FLASH_FRAMES  16
@@ -282,6 +290,78 @@ static void handle_post_dialogue(void) {
     }
 }
 
+/* ---- Difficulty select screen ---- */
+
+static void diff_draw_option(uint8_t row, const uint8_t *text, uint8_t len, uint8_t selected) {
+    uint8_t buf[20];
+    uint8_t i;
+    for (i = 0; i < 20; i++) buf[i] = TILE_BLACK;
+    buf[2] = selected ? TILE_STAR_SM : TILE_BLACK;
+    for (i = 0; i < len; i++) buf[4 + i] = text[i];
+    set_win_tiles(0, row, 20, 1, buf);
+}
+
+static void diff_draw_options(void) {
+    static const uint8_t easy[]   = {TILE_LETTER_E, TILE_LETTER_A, TILE_LETTER_S, TILE_LETTER_Y};
+    static const uint8_t normal[] = {TILE_LETTER_N, TILE_LETTER_O, TILE_LETTER_R,
+                                     TILE_LETTER_M, TILE_LETTER_A, TILE_LETTER_L};
+    static const uint8_t hard[]   = {TILE_LETTER_H, TILE_LETTER_A, TILE_LETTER_R, TILE_LETTER_D};
+    diff_draw_option(9,  easy,   4, diff_cursor == 0);
+    diff_draw_option(11, normal, 6, diff_cursor == 1);
+    diff_draw_option(13, hard,   4, diff_cursor == 2);
+}
+
+static void difficulty_init(void) {
+    static const uint8_t select_txt[]  = {TILE_LETTER_S, TILE_LETTER_E, TILE_LETTER_L,
+                                          TILE_LETTER_E, TILE_LETTER_C, TILE_LETTER_T};
+    static const uint8_t diff_txt[]    = {TILE_LETTER_D, TILE_LETTER_I, TILE_LETTER_F,
+                                          TILE_LETTER_F, TILE_LETTER_I, TILE_LETTER_C,
+                                          TILE_LETTER_U, TILE_LETTER_L, TILE_LETTER_T,
+                                          TILE_LETTER_Y};
+    static const uint8_t pressa[]      = {TILE_LETTER_P, TILE_LETTER_R, TILE_LETTER_E,
+                                          TILE_LETTER_S, TILE_LETTER_S, TILE_BLANK,
+                                          TILE_LETTER_A};
+    uint8_t r, i;
+    uint8_t blk[20];
+    for (i = 0; i < 20; i++) blk[i] = TILE_BLACK;
+    for (r = 0; r < 18; r++) set_win_tiles(0, r, 20, 1, blk);
+    win_fill_row(3, TILE_DASH);
+    win_write_centered(5, select_txt, 6);
+    win_write_centered(6, diff_txt, 10);
+    win_fill_row(7, TILE_DASH);
+    diff_cursor = 0;
+    diff_draw_options();
+    win_fill_row(15, TILE_DASH);
+    win_write_centered(17, pressa, 7);
+    move_win(HUD_WX, 0);
+    SHOW_WIN;
+    game_state = STATE_DIFFICULTY;
+}
+
+static void difficulty_update(uint8_t joy_pressed) {
+    if ((joy_pressed & J_UP) && diff_cursor > 0) {
+        diff_cursor--;
+        diff_draw_options();
+    }
+    if ((joy_pressed & J_DOWN) && diff_cursor < 2) {
+        diff_cursor++;
+        diff_draw_options();
+    }
+    if (joy_pressed & (J_A | J_START)) {
+        difficulty = diff_cursor;
+        game_stage = 1;
+        player_init();
+        player.dev_mode = diff_want_dev;
+        bullets_init();
+        enemies_init();
+        enemy_bullets_init();
+        enemies_spawn_wave();
+        post_dialogue_act = DLACT_START_PLAYING;
+        dialogue_start(DIALOGUE_INTRO);
+        game_state = STATE_DIALOGUE;
+    }
+}
+
 /* ---- Title screen ---- */
 static void title_init(void) {
     uint8_t i;
@@ -302,18 +382,8 @@ static void title_init(void) {
 
 static void title_update(uint8_t joy) {
     if (joy & (J_START | J_A)) {
-        uint8_t want_dev = (joy & J_START) ? 1 : 0;
-        game_stage = 1;
-        player_init();
-        player.dev_mode = want_dev;   /* START = dev mode, A = normal */
-        bullets_init();
-        enemies_init();
-        enemy_bullets_init();
-        enemies_spawn_wave();
-        /* Show intro dialogue before gameplay begins */
-        post_dialogue_act = DLACT_START_PLAYING;
-        dialogue_start(DIALOGUE_INTRO);
-        game_state = STATE_DIALOGUE;
+        diff_want_dev = (joy & J_START) ? 1 : 0;
+        difficulty_init();
     }
 }
 
@@ -631,6 +701,9 @@ void main(void) {
             if (dialogue_is_done()) {
                 handle_post_dialogue();
             }
+            break;
+        case STATE_DIFFICULTY:
+            difficulty_update(joy_pressed);
             break;
         }
 

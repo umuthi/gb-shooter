@@ -2,6 +2,7 @@
 #include "bullet.h"
 #include "sound.h"
 #include "tiles.h"
+#include "hud.h"
 #include <gbdk/platform.h>
 
 Player player;
@@ -82,6 +83,13 @@ void player_hit(void) {
     player.lives--;
     player.inv_timer = PLAYER_INV_FRAMES;
     sfx_player_hit();
+    /* NORMAL/HARD: reset power and bombs on every hit */
+    if (difficulty >= DIFFICULTY_NORMAL) {
+        player.power_level = 1;
+        player.bombs = 0;
+    }
+    /* Break the score multiplier streak */
+    score_multiplier = 1;
     if (player.lives == 0) {
         player.alive = 0;
         move_sprite(PLAYER_OAM_SLOT, 0, 0); /* hide off screen */

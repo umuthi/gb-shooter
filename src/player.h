@@ -15,6 +15,12 @@
 #define PLAYER_LIVES_INIT 3
 #define PLAYER_INV_FRAMES 60   /* 1 second of invincibility */
 
+/* Difficulty levels — selected at start of each run */
+#define DIFFICULTY_EASY   0
+#define DIFFICULTY_NORMAL 1
+#define DIFFICULTY_HARD   2
+extern uint8_t difficulty;
+
 typedef struct {
     uint8_t x;
     uint8_t y;

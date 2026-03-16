@@ -83,12 +83,15 @@ void collision_check(void) {
                 if (pickups[i].type == PICKUP_TYPE_HEART) {
                     if (player.lives < PLAYER_LIVES_MAX)
                         player.lives++;
+                    else if (score_multiplier < 9) score_multiplier++;
                 } else if (pickups[i].type == PICKUP_TYPE_POWER) {
                     if (player.power_level < 5)
                         player.power_level++;
+                    else if (score_multiplier < 9) score_multiplier++;
                 } else if (pickups[i].type == PICKUP_TYPE_BOMB) {
                     if (player.bombs < 5)
                         player.bombs++;
+                    else if (score_multiplier < 9) score_multiplier++;
                 }
                 pickups[i].active = 0;
                 move_sprite(PICKUP_OAM_BASE + i, 0, 0);
@@ -183,10 +186,13 @@ void collision_check_enemies(void) {
             if (AABB_HIT(px, py, pickups[i].x, pickups[i].y)) {
                 if (pickups[i].type == PICKUP_TYPE_HEART) {
                     if (player.lives < PLAYER_LIVES_MAX) player.lives++;
+                    else if (score_multiplier < 9) score_multiplier++;
                 } else if (pickups[i].type == PICKUP_TYPE_POWER) {
                     if (player.power_level < 5) player.power_level++;
+                    else if (score_multiplier < 9) score_multiplier++;
                 } else if (pickups[i].type == PICKUP_TYPE_BOMB) {
                     if (player.bombs < 5) player.bombs++;
+                    else if (score_multiplier < 9) score_multiplier++;
                 }
                 pickups[i].active = 0;
                 move_sprite(PICKUP_OAM_BASE + i, 0, 0);
