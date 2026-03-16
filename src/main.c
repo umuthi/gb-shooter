@@ -224,6 +224,7 @@ static void handle_post_dialogue(void) {
     uint8_t  saved_bombs;
     uint8_t  saved_dev;
     uint16_t saved_score;
+    uint8_t  saved_mult;
 
     switch (post_dialogue_act) {
     case DLACT_START_PLAYING:
@@ -244,6 +245,7 @@ static void handle_post_dialogue(void) {
         saved_bombs = player.bombs;
         saved_dev   = player.dev_mode;
         saved_score = score;
+        saved_mult  = score_multiplier;
 
         game_stage++;
         player_init();
@@ -258,7 +260,8 @@ static void handle_post_dialogue(void) {
         enemies_spawn_wave();
 
         hud_init();
-        score = saved_score;
+        score            = saved_score;
+        score_multiplier = saved_mult;
 
         scroll_y = 0;
         SCY_REG  = 0;
@@ -269,10 +272,12 @@ static void handle_post_dialogue(void) {
 
     case DLACT_BOSS_PHASE2:
         saved_score = score;
+        saved_mult  = score_multiplier;
         boss_phase2_begin();
         boss_p2_spawned = 0;
         hud_init();
-        score = saved_score;
+        score            = saved_score;
+        score_multiplier = saved_mult;
         game_state = STATE_BOSS;
         break;
 
@@ -428,7 +433,11 @@ static void pause_init(void) {
 
 static void pause_update(uint8_t joy_pressed) {
     if (joy_pressed & J_SELECT) {
+        uint16_t saved_score = score;
+        uint8_t  saved_mult  = score_multiplier;
         hud_init();
+        score            = saved_score;
+        score_multiplier = saved_mult;
         game_state = STATE_PLAYING;
     }
 }
@@ -436,6 +445,9 @@ static void pause_update(uint8_t joy_pressed) {
 /* ---- Boss fight ---- */
 static void boss_fight_init(void) {
     uint8_t i;
+    uint16_t saved_score;
+    uint8_t  saved_mult;
+
     /* Hide all enemy, enemy-bullet, and pickup sprites */
     for (i = 0; i < ENEMY_COUNT; i++)
         move_sprite(ENEMY_OAM_BASE + i, 0, 0);
@@ -453,7 +465,13 @@ static void boss_fight_init(void) {
     boss_p2_spawned   = 0;
 
     boss_init(game_stage);   /* stage 1 → boss 1, stage 2 → boss 2, stage 3 → final boss */
+
+    saved_score = score;
+    saved_mult  = score_multiplier;
     hud_init();
+    score            = saved_score;
+    score_multiplier = saved_mult;
+
     game_state = STATE_BOSS;
 }
 
