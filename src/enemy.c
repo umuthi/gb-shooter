@@ -39,7 +39,7 @@ void enemies_init(void) {
     for (i = 0; i < ENEMY_COUNT; i++) {
         enemies[i].active = 0;
         move_sprite(ENEMY_OAM_BASE + i, 0, 0);
-        set_sprite_tile(ENEMY_OAM_BASE + i, SPR_ENEMY_A);
+        set_sprite_tile(ENEMY_OAM_BASE + i, SPR_ENEMY1);
         set_sprite_prop(ENEMY_OAM_BASE + i, 0x10U);
     }
 }
@@ -80,7 +80,13 @@ void enemies_spawn_wave(void) {
         e->timer      = i << 3;
         e->dir        = i & 1;
         e->speed_x    = (pat == PATTERN_DIAGONAL) ? ((i & 1) ? 1 : -1) : 0;
-        e->tile       = (i & 1) ? SPR_ENEMY_B : SPR_ENEMY_A;
+        switch (pat) {
+            case PATTERN_STRAIGHT: e->tile = SPR_ENEMY1; break;
+            case PATTERN_ZIGZAG:   e->tile = SPR_ENEMY2; break;
+            case PATTERN_SWOOP:    e->tile = SPR_ENEMY3; break;
+            case PATTERN_DIAGONAL: e->tile = SPR_ENEMY3; break;
+            default:               e->tile = SPR_ENEMY4; break;
+        }
         e->fire_timer = 20 + (uint8_t)(i * 8); /* fire while still high on screen */
         set_sprite_tile(ENEMY_OAM_BASE + i, e->tile);
         set_sprite_prop(ENEMY_OAM_BASE + i, 0x10U);
@@ -99,7 +105,7 @@ void enemies_spawn_wave(void) {
         e->timer      = 0;
         e->dir        = 0;  /* 0=not yet locked, set to 1 when charging */
         e->speed_x    = 0;
-        e->tile       = SPR_ENEMY_A;
+        e->tile       = SPR_ENEMY4;
         e->fire_timer = 0;  /* kamikazes do not shoot */
         /* Y-flip + OBP1: makes the sprite look like it's diving */
         set_sprite_tile(ENEMY_OAM_BASE + count, e->tile);
@@ -233,6 +239,7 @@ void enemies_update(void) {
             move_sprite(ENEMY_OAM_BASE + i, 0, 0);
             if (enemies_alive > 0) enemies_alive--;
         } else {
+            set_sprite_tile(ENEMY_OAM_BASE + i, e->tile + anim_frame);
             move_sprite(ENEMY_OAM_BASE + i, e->x, e->y);
         }
     }

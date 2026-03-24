@@ -46,26 +46,37 @@
 #define TILE_COMMA        44
 #define TILE_QUESTION     45
 
-/* Sprite tile indices (loaded into sprite VRAM separately) */
-#define SPR_PLAYER        0
-#define SPR_BULLET        1
-#define SPR_ENEMY_A       2
-#define SPR_ENEMY_B       3
-#define SPR_EXPLOSION_0   4
-#define SPR_EXPLOSION_1   5
-#define SPR_HEART         6   /* heart icon — used as BG/WIN tile in HUD */
-#define SPR_PICKUP_POWER  7
-#define SPR_PICKUP_BOMB   8
-#define SPR_BOSS_TL       9   /* boss 2x2 metasprite — top-left */
-#define SPR_BOSS_TR       10
-#define SPR_BOSS_BL       11
-#define SPR_BOSS_BR       12
+/* Sprite tile indices (loaded into sprite VRAM separately).
+   Frame 0 and frame 1 are always consecutive so anim_frame (0 or 1) can be added. */
+#define SPR_PLAYER        0   /* frame 0 */
+#define SPR_PLAYER_1      1   /* frame 1 */
+#define SPR_BULLET        2
+#define SPR_ENEMY1        3   /* straight pattern, frame 0 */
+#define SPR_ENEMY1_1      4   /* frame 1 */
+#define SPR_ENEMY2        5   /* zigzag pattern, frame 0 */
+#define SPR_ENEMY2_1      6   /* frame 1 */
+#define SPR_ENEMY3        7   /* swoop/diagonal pattern, frame 0 */
+#define SPR_ENEMY3_1      8   /* frame 1 */
+#define SPR_ENEMY4        9   /* sine/kamikaze pattern, frame 0 */
+#define SPR_ENEMY4_1      10  /* frame 1 */
+#define SPR_EXPLOSION_0   11
+#define SPR_EXPLOSION_1   12
+#define SPR_HEART         13  /* frame 0 */
+#define SPR_HEART_1       14  /* frame 1 */
+#define SPR_PICKUP_POWER  15  /* frame 0 */
+#define SPR_PICKUP_POWER_1 16 /* frame 1 */
+#define SPR_PICKUP_BOMB   17  /* frame 0 */
+#define SPR_PICKUP_BOMB_1 18  /* frame 1 */
+#define SPR_BOSS_TL       19  /* boss 2x2 metasprite — top-left */
+#define SPR_BOSS_TR       20
+#define SPR_BOSS_BL       21
+#define SPR_BOSS_BR       22
 
 extern const uint8_t bg_tiles[];
 extern const uint8_t sprite_tiles[];
 
 #define BG_TILES_COUNT    46
-#define SPR_TILES_COUNT   13
+#define SPR_TILES_COUNT   23
 
 void tiles_load(void);
 

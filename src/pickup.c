@@ -74,6 +74,10 @@ void pickups_update(void) {
             pickups[i].active = 0;
             move_sprite(PICKUP_OAM_BASE + i, 0, 0);
         } else {
+            uint8_t base_tile = (pickups[i].type == PICKUP_TYPE_HEART) ? SPR_HEART :
+                                (pickups[i].type == PICKUP_TYPE_POWER)  ? SPR_PICKUP_POWER :
+                                                                           SPR_PICKUP_BOMB;
+            set_sprite_tile(PICKUP_OAM_BASE + i, base_tile + anim_frame);
             move_sprite(PICKUP_OAM_BASE + i, pickups[i].x, pickups[i].y);
         }
     }

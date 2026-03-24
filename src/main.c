@@ -36,6 +36,7 @@
 
 /* Difficulty: DIFFICULTY_EASY/NORMAL/HARD — defined in player.h, set by select screen */
 uint8_t difficulty;
+uint8_t anim_frame;   /* 0 or 1, toggles every 8 frames */
 
 static uint8_t game_state;
 static uint8_t frame_count;
@@ -728,5 +729,6 @@ void main(void) {
         }
 
         frame_count++;
+        anim_frame = (frame_count >> 3) & 1;
     }
 }
