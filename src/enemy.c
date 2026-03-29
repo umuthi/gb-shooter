@@ -49,7 +49,7 @@ void enemy_bullets_init(void) {
     for (i = 0; i < ENEMY_BULLET_COUNT; i++) {
         enemy_bullets[i].active = 0;
         move_sprite(ENEMY_BULLET_BASE + i, 0, 0);
-        set_sprite_tile(ENEMY_BULLET_BASE + i, SPR_BULLET);
+        set_sprite_tile(ENEMY_BULLET_BASE + i, SPR_ENEMY_BULLET);
         set_sprite_prop(ENEMY_BULLET_BASE + i, 0x00U); /* OBP0 = dark gray, distinct from player */
     }
 }
@@ -129,6 +129,7 @@ void enemy_bullets_update(void) {
             move_sprite(ENEMY_BULLET_BASE + i, 0, 0);
         } else {
             move_sprite(ENEMY_BULLET_BASE + i, b->x, b->y);
+            set_sprite_tile(ENEMY_BULLET_BASE + i, SPR_ENEMY_BULLET + anim_frame);
         }
     }
 }

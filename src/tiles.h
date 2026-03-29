@@ -50,33 +50,40 @@
    Frame 0 and frame 1 are always consecutive so anim_frame (0 or 1) can be added. */
 #define SPR_PLAYER        0   /* frame 0 */
 #define SPR_PLAYER_1      1   /* frame 1 */
-#define SPR_BULLET        2
-#define SPR_ENEMY1        3   /* straight pattern, frame 0 */
-#define SPR_ENEMY1_1      4   /* frame 1 */
-#define SPR_ENEMY2        5   /* zigzag pattern, frame 0 */
-#define SPR_ENEMY2_1      6   /* frame 1 */
-#define SPR_ENEMY3        7   /* swoop/diagonal pattern, frame 0 */
-#define SPR_ENEMY3_1      8   /* frame 1 */
-#define SPR_ENEMY4        9   /* sine/kamikaze pattern, frame 0 */
-#define SPR_ENEMY4_1      10  /* frame 1 */
-#define SPR_EXPLOSION_0   11
-#define SPR_EXPLOSION_1   12
-#define SPR_HEART         13  /* frame 0 */
-#define SPR_HEART_1       14  /* frame 1 */
-#define SPR_PICKUP_POWER  15  /* frame 0 */
-#define SPR_PICKUP_POWER_1 16 /* frame 1 */
-#define SPR_PICKUP_BOMB   17  /* frame 0 */
-#define SPR_PICKUP_BOMB_1 18  /* frame 1 */
-#define SPR_BOSS_TL       19  /* boss 2x2 metasprite — top-left */
-#define SPR_BOSS_TR       20
-#define SPR_BOSS_BL       21
-#define SPR_BOSS_BR       22
+#define SPR_BULLET        2   /* player bullet frame 0 */
+#define SPR_BULLET_1      3   /* player bullet frame 1 */
+#define SPR_ENEMY_BULLET  4   /* enemy bullet frame 0 */
+#define SPR_ENEMY_BULLET_1 5  /* enemy bullet frame 1 */
+#define SPR_ENEMY1        6   /* straight pattern, frame 0 */
+#define SPR_ENEMY1_1      7   /* frame 1 */
+#define SPR_ENEMY2        8   /* zigzag pattern, frame 0 */
+#define SPR_ENEMY2_1      9   /* frame 1 */
+#define SPR_ENEMY3        10  /* swoop/diagonal pattern, frame 0 */
+#define SPR_ENEMY3_1      11  /* frame 1 */
+#define SPR_ENEMY4        12  /* sine/kamikaze pattern, frame 0 */
+#define SPR_ENEMY4_1      13  /* frame 1 */
+#define SPR_EXPLOSION_0   14
+#define SPR_EXPLOSION_1   15
+#define SPR_HEART         16  /* frame 0 */
+#define SPR_HEART_1       17  /* frame 1 */
+#define SPR_PICKUP_POWER  18  /* frame 0 */
+#define SPR_PICKUP_POWER_1 19 /* frame 1 */
+#define SPR_PICKUP_BOMB   20  /* frame 0 */
+#define SPR_PICKUP_BOMB_1 21  /* frame 1 */
+#define SPR_BOSS_TL       22  /* boss 2x2 metasprite frame 0 — top-left */
+#define SPR_BOSS_TR       23
+#define SPR_BOSS_BL       24
+#define SPR_BOSS_BR       25
+#define SPR_BOSS_TL_1     26  /* boss frame 1 */
+#define SPR_BOSS_TR_1     27
+#define SPR_BOSS_BL_1     28
+#define SPR_BOSS_BR_1     29
 
 extern const uint8_t bg_tiles[];
 extern const uint8_t sprite_tiles[];
 
 #define BG_TILES_COUNT    46
-#define SPR_TILES_COUNT   23
+#define SPR_TILES_COUNT   30
 
 void tiles_load(void);
 

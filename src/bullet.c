@@ -1,5 +1,6 @@
 #include "bullet.h"
 #include "tiles.h"
+#include "player.h"
 #include <gbdk/platform.h>
 
 Bullet bullets[BULLET_COUNT];
@@ -41,6 +42,7 @@ void bullets_update(void) {
         } else {
             b->y -= BULLET_SPEED;
             move_sprite(BULLET_OAM_BASE + i, b->x, b->y);
+            set_sprite_tile(BULLET_OAM_BASE + i, SPR_BULLET + anim_frame);
         }
     }
 }
