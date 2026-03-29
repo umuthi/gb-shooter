@@ -387,16 +387,18 @@ void boss_update(void) {
     move_sprite(BOSS_OAM_BASE + 1, boss.x + 8, boss.y);
     move_sprite(BOSS_OAM_BASE + 2, boss.x,     boss.y + 8);
     move_sprite(BOSS_OAM_BASE + 3, boss.x + 8, boss.y + 8);
-    if (anim_frame) {
-        set_sprite_tile(BOSS_OAM_BASE + 0, SPR_BOSS_TL_1);
-        set_sprite_tile(BOSS_OAM_BASE + 1, SPR_BOSS_TR_1);
-        set_sprite_tile(BOSS_OAM_BASE + 2, SPR_BOSS_BL_1);
-        set_sprite_tile(BOSS_OAM_BASE + 3, SPR_BOSS_BR_1);
-    } else {
-        set_sprite_tile(BOSS_OAM_BASE + 0, SPR_BOSS_TL);
-        set_sprite_tile(BOSS_OAM_BASE + 1, SPR_BOSS_TR);
-        set_sprite_tile(BOSS_OAM_BASE + 2, SPR_BOSS_BL);
-        set_sprite_tile(BOSS_OAM_BASE + 3, SPR_BOSS_BR);
+    if (anim_frame_changed) {
+        if (anim_frame) {
+            set_sprite_tile(BOSS_OAM_BASE + 0, SPR_BOSS_TL_1);
+            set_sprite_tile(BOSS_OAM_BASE + 1, SPR_BOSS_TR_1);
+            set_sprite_tile(BOSS_OAM_BASE + 2, SPR_BOSS_BL_1);
+            set_sprite_tile(BOSS_OAM_BASE + 3, SPR_BOSS_BR_1);
+        } else {
+            set_sprite_tile(BOSS_OAM_BASE + 0, SPR_BOSS_TL);
+            set_sprite_tile(BOSS_OAM_BASE + 1, SPR_BOSS_TR);
+            set_sprite_tile(BOSS_OAM_BASE + 2, SPR_BOSS_BL);
+            set_sprite_tile(BOSS_OAM_BASE + 3, SPR_BOSS_BR);
+        }
     }
 
     /* ---- Firing ---- */

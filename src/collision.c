@@ -142,7 +142,7 @@ void collision_check_enemies(void) {
                 enemies[j].active = 0;
                 move_sprite(ENEMY_OAM_BASE + j, 0, 0);
                 if (enemies_alive > 0) enemies_alive--;
-                hud_add_score(10);
+                hud_add_score(hud_enemy_pts());
                 sfx_explosion();
                 break;
             }

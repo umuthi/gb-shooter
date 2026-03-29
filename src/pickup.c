@@ -57,6 +57,7 @@ void pickup_try_spawn(uint8_t x, uint8_t y) {
             } else {
                 tile = SPR_PICKUP_BOMB;
             }
+            pickups[i].base_tile = tile;
             set_sprite_tile(PICKUP_OAM_BASE + i, tile);
             set_sprite_prop(PICKUP_OAM_BASE + i, 0x00U); /* OBP0 */
             move_sprite(PICKUP_OAM_BASE + i, pickups[i].x, pickups[i].y);
@@ -74,10 +75,8 @@ void pickups_update(void) {
             pickups[i].active = 0;
             move_sprite(PICKUP_OAM_BASE + i, 0, 0);
         } else {
-            uint8_t base_tile = (pickups[i].type == PICKUP_TYPE_HEART) ? SPR_HEART :
-                                (pickups[i].type == PICKUP_TYPE_POWER)  ? SPR_PICKUP_POWER :
-                                                                           SPR_PICKUP_BOMB;
-            set_sprite_tile(PICKUP_OAM_BASE + i, base_tile + anim_frame);
+            if (anim_frame_changed)
+                set_sprite_tile(PICKUP_OAM_BASE + i, pickups[i].base_tile + anim_frame);
             move_sprite(PICKUP_OAM_BASE + i, pickups[i].x, pickups[i].y);
         }
     }

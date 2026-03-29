@@ -98,7 +98,8 @@ void player_hit(void) {
 
 void player_draw(void) {
     if (!player.alive) return;
-    set_sprite_tile(PLAYER_OAM_SLOT, SPR_PLAYER + anim_frame);
+    if (anim_frame_changed)
+        set_sprite_tile(PLAYER_OAM_SLOT, SPR_PLAYER + anim_frame);
     /* Blink during invincibility: hide every other 8 frames */
     if (player.inv_timer > 0 && (player.inv_timer & 8)) {
         move_sprite(PLAYER_OAM_SLOT, 0, 0);

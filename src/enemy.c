@@ -129,7 +129,8 @@ void enemy_bullets_update(void) {
             move_sprite(ENEMY_BULLET_BASE + i, 0, 0);
         } else {
             move_sprite(ENEMY_BULLET_BASE + i, b->x, b->y);
-            set_sprite_tile(ENEMY_BULLET_BASE + i, SPR_ENEMY_BULLET + anim_frame);
+            if (anim_frame_changed)
+                set_sprite_tile(ENEMY_BULLET_BASE + i, SPR_ENEMY_BULLET + anim_frame);
         }
     }
 }
@@ -240,7 +241,8 @@ void enemies_update(void) {
             move_sprite(ENEMY_OAM_BASE + i, 0, 0);
             if (enemies_alive > 0) enemies_alive--;
         } else {
-            set_sprite_tile(ENEMY_OAM_BASE + i, e->tile + anim_frame);
+            if (anim_frame_changed)
+                set_sprite_tile(ENEMY_OAM_BASE + i, e->tile + anim_frame);
             move_sprite(ENEMY_OAM_BASE + i, e->x, e->y);
         }
     }

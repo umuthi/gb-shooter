@@ -13,6 +13,7 @@ typedef struct {
     uint8_t x, y;
     uint8_t type;
     uint8_t active;
+    uint8_t base_tile; /* SPR_HEART/SPR_PICKUP_POWER/SPR_PICKUP_BOMB — set on spawn */
 } Pickup;
 
 extern Pickup pickups[PICKUP_COUNT];

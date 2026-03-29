@@ -36,7 +36,8 @@
 
 /* Difficulty: DIFFICULTY_EASY/NORMAL/HARD — defined in player.h, set by select screen */
 uint8_t difficulty;
-uint8_t anim_frame;   /* 0 or 1, toggles every 8 frames */
+uint8_t anim_frame;
+uint8_t anim_frame_changed;
 
 static uint8_t game_state;
 static uint8_t frame_count;
@@ -79,8 +80,8 @@ static void starfield_init(void) {
     for (y = 0; y < 32; y++) {
         for (x = 0; x < 32; x++) {
             uint8_t r = rand8();
-            if (r < 8)       row_buf[x] = TILE_STAR_LG;
-            else if (r < 32) row_buf[x] = TILE_STAR_SM;
+            if (r < 8)       row_buf[x] = TILE_STAR_SM;
+            else if (r < 16) row_buf[x] = TILE_STAR_LG;
             else             row_buf[x] = TILE_BLANK;
         }
         set_bkg_tiles(0, y, 32, 1, row_buf);
@@ -672,8 +673,8 @@ void main(void) {
     tiles_load();
 
     BGP_REG  = 0xE4;
-    OBP0_REG = 0xE8;
-    OBP1_REG = 0xFC;
+    OBP0_REG = 0xE4;
+    OBP1_REG = 0xE4;
 
     sound_init();
     starfield_init();
@@ -729,6 +730,10 @@ void main(void) {
         }
 
         frame_count++;
-        anim_frame = (frame_count >> 3) & 1;
+        {
+            uint8_t new_anim = (frame_count >> 3) & 1;
+            anim_frame_changed = (new_anim != anim_frame);
+            anim_frame = new_anim;
+        }
     }
 }

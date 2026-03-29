@@ -20,7 +20,8 @@
 #define DIFFICULTY_NORMAL 1
 #define DIFFICULTY_HARD   2
 extern uint8_t difficulty;
-extern uint8_t anim_frame;   /* 0 or 1, toggles every 8 frames — used for sprite animation */
+extern uint8_t anim_frame;         /* 0 or 1, toggles every 8 frames */
+extern uint8_t anim_frame_changed; /* 1 only on the frame anim_frame flips */
 
 typedef struct {
     uint8_t x;
