@@ -82,7 +82,14 @@
 extern const uint8_t bg_tiles[];
 extern const uint8_t sprite_tiles[];
 
-#define BG_TILES_COUNT    46
+/* Dialogue background image tile arrays (per-scene loading, Option B) */
+extern const uint8_t img_pre_boss3[];
+
+#define IMG_PRE_BOSS3_BASE   46  /* first BG tile index for PRE_BOSS3 image */
+#define IMG_PRE_BOSS3_COUNT  210 /* unique tile count */
+
+#define BG_TILES_STATIC   46    /* tiles permanently loaded at boot (indices 0–45) */
+#define BG_TILES_COUNT    256   /* total BG VRAM used (static + largest scene image) */
 #define SPR_TILES_COUNT   30
 
 void tiles_load(void);
