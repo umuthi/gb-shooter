@@ -62,6 +62,31 @@ static uint8_t boss_p2_spawned;
 /* Post-dialogue transition target */
 static uint8_t post_dialogue_act;
 
+/* ---- Attract mode (enemy formation on title/difficulty screens) ---- */
+/* Lissajous figure-8: x uses 2× frequency of y for that infinity-loop shape */
+/* sinx[i] = round(55 * sin(2*PI*i/32)) */
+static const int8_t sinx[32] = {
+     0, 11, 21, 31, 39, 46, 51, 54,
+    55, 54, 51, 46, 39, 31, 21, 11,
+     0,-11,-21,-31,-39,-46,-51,-54,
+   -55,-54,-51,-46,-39,-31,-21,-11
+};
+/* siny[i] = round(40 * sin(2*PI*i/32)) */
+static const int8_t siny[32] = {
+     0,  8, 15, 22, 28, 33, 37, 39,
+    40, 39, 37, 33, 28, 22, 15,  8,
+     0, -8,-15,-22,-28,-33,-37,-39,
+   -40,-39,-37,-33,-28,-22,-15, -8
+};
+
+static uint16_t attract_t;
+static uint8_t  attract_tile[8];
+
+#define ATTRACT_ENTER  64u
+#define ATTRACT_LOOP   512u
+#define ATTRACT_EXIT   64u
+#define ATTRACT_TOTAL  (ATTRACT_ENTER + ATTRACT_LOOP + ATTRACT_EXIT)
+
 /* ---- Starfield (scrolling background) ---- */
 static uint8_t scroll_y;
 
@@ -218,8 +243,9 @@ static void win_overlay_init(uint8_t kind) {
     SHOW_WIN;
 }
 
-/* Forward declaration — boss_fight_init is defined later in this file */
+/* Forward declarations — defined later in this file */
 static void boss_fight_init(void);
+static void attract_update(void);
 
 /* ---- Post-dialogue transition ---- */
 static void handle_post_dialogue(void) {
@@ -348,6 +374,7 @@ static void difficulty_init(void) {
 }
 
 static void difficulty_update(uint8_t joy_pressed) {
+    attract_update();
     if ((joy_pressed & J_UP) && diff_cursor > 0) {
         diff_cursor--;
         diff_draw_options();
@@ -371,6 +398,50 @@ static void difficulty_update(uint8_t joy_pressed) {
     }
 }
 
+static void attract_init(void) {
+    static const uint8_t tile_map[8] = {
+        SPR_ENEMY1, SPR_ENEMY1, SPR_ENEMY2, SPR_ENEMY2,
+        SPR_ENEMY3, SPR_ENEMY3, SPR_ENEMY4, SPR_ENEMY4
+    };
+    uint8_t i;
+    attract_t = 0;
+    for (i = 0; i < 8; i++) {
+        attract_tile[i] = tile_map[i];
+        set_sprite_tile(ENEMY_OAM_BASE + i, tile_map[i]);
+        set_sprite_prop(ENEMY_OAM_BASE + i, 0x10U);
+    }
+}
+
+static void attract_update(void) {
+    uint8_t i, ai, xi;
+    int16_t yoff, ex, ey;
+
+    if (attract_t < ATTRACT_ENTER) {
+        yoff = ((int16_t)attract_t - (int16_t)ATTRACT_ENTER) * 2;  /* -128 → 0 */
+    } else if (attract_t < ATTRACT_ENTER + ATTRACT_LOOP) {
+        yoff = 0;
+    } else {
+        yoff = ((int16_t)attract_t - (int16_t)(ATTRACT_ENTER + ATTRACT_LOOP)) * 2;  /* 0 → +128 */
+    }
+
+    for (i = 0; i < 8; i++) {
+        ai = (uint8_t)(((attract_t >> 2) + (uint16_t)i * 4u) & 31u);
+        xi = (uint8_t)((ai * 2u) & 31u);
+        ex = 80 + (int16_t)sinx[xi];
+        ey = 72 + (int16_t)siny[ai] + yoff;
+        if (ey < 0 || ey > 150) {
+            move_sprite(ENEMY_OAM_BASE + i, 0, 0);
+        } else {
+            move_sprite(ENEMY_OAM_BASE + i, (uint8_t)ex, (uint8_t)ey);
+            if (anim_frame_changed)
+                set_sprite_tile(ENEMY_OAM_BASE + i, attract_tile[i] + anim_frame);
+        }
+    }
+
+    attract_t++;
+    if (attract_t >= ATTRACT_TOTAL) attract_t = 0;
+}
+
 /* ---- Title screen ---- */
 static void title_init(void) {
     uint8_t i;
@@ -385,11 +456,13 @@ static void title_init(void) {
     starfield_init();
 
     pickups_init();
+    attract_init();
     win_overlay_init(0);
     game_state = STATE_TITLE;
 }
 
 static void title_update(uint8_t joy) {
+    attract_update();
     if (joy & (J_START | J_A)) {
         diff_want_dev = (joy & J_START) ? 1 : 0;
         difficulty_init();
